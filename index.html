@@ -989,6 +989,7 @@
         }
 
         function renderizarDashboard() {
+            const USERS_LIST = window.appData.usuarios ? window.appData.usuarios.map(u => u.username) : [];
             const currentUser = window.appData.currentUser || sessionStorage.getItem('currentUser');
             if (currentUser) document.getElementById('dash-username').innerText = currentUser;
 
