@@ -49,7 +49,7 @@ def get_usuarios_collection():
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
-    username = data.get('user')
+    username = data.get('username') or data.get('user')
     password = data.get('password')
     
     try:
