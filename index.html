@@ -414,6 +414,41 @@
         </div>
     </div>
 
+    <!-- === NUEVA SECCIÓN: COTIZADOR PREDISEÑADO === -->
+    <div id="view-cotizador-predisenado" class="view-section">
+        <header class="bg-[#172042] text-white p-4 shadow-md sticky top-0 z-40 print:hidden">
+            <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-4">
+                    <button onclick="volverAlDashboard()" class="text-white hover:text-[#F2A900] transition-colors" title="Volver al Dashboard">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    </button>
+                    <div>
+                        <h1 class="text-2xl font-bold">Cotizador Prediseñado</h1>
+                        <p class="text-xs text-gray-300">Asesor: <span id="predisenado-asesor-name" class="font-bold text-[#F2A900]"></span></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button class="bg-[#F2A900] hover:bg-[#d89600] text-[#172042] font-bold py-2 px-6 rounded shadow transition-colors">Guardar Cotización</button>
+                </div>
+            </div>
+        </header>
+        
+        <div class="max-w-7xl mx-auto p-4 md:p-8">
+            <div class="bg-white p-12 rounded-xl shadow-sm text-center border-2 border-dashed border-gray-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto mb-4 text-gray-400" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
+                <h2 class="text-xl font-bold text-[#172042] mb-2">Construcción en progreso</h2>
+                <p class="text-gray-500">Aquí irá toda la lógica del Cotizador Prediseñado (Mallas, Planes y Exámenes).</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATIONS -->
+    <div id="toast"
+        class="fixed top-5 right-5 bg-[#172042] text-white px-6 py-3 rounded shadow-lg transform translate-x-full transition-transform duration-300 z-50 flex items-center gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F2A900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        <span id="toast-msg">Mensaje</span>
+    </div>
+
     <!-- MODAL GESTIÓN DE USUARIOS -->
     <div id="modal-usuarios"
         class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center backdrop-blur-sm print:hidden">
@@ -449,6 +484,27 @@
         </div>
     </div>
 
+    <!-- MODAL SELECCIÓN TIPO COTIZACIÓN -->
+    <div id="modal-tipo-cotizacion" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center backdrop-blur-sm print:hidden">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md border-t-4 border-[#F2A900]">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-[#172042]">Nueva Cotización</h3>
+                <button onclick="document.getElementById('modal-tipo-cotizacion').classList.add('hidden')" class="text-gray-500 hover:text-red-500 text-xl font-bold">✖</button>
+            </div>
+            <p class="text-gray-600 mb-6 text-center">Selecciona el tipo de producto que deseas cotizar:</p>
+            <div class="flex flex-col gap-4">
+                <button onclick="document.getElementById('modal-tipo-cotizacion').classList.add('hidden'); cambiarVista('cotizador');" class="flex items-center justify-center gap-3 bg-[#172042] text-white p-4 rounded-lg hover:bg-[#22305c] transition-colors shadow">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F2A900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                    <span class="font-bold text-lg">Cotizar Proyecto</span>
+                </button>
+                <button onclick="document.getElementById('modal-tipo-cotizacion').classList.add('hidden'); cambiarVista('cotizador-predisenado');" class="flex items-center justify-center gap-3 bg-white border-2 border-[#172042] text-[#172042] p-4 rounded-lg hover:bg-gray-50 transition-colors shadow">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F2A900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
+                    <span class="font-bold text-lg">Cotizar Prediseñado</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="view-login-main" class="view-section active print:hidden">
         <div class="min-h-screen flex items-center justify-center p-6">
             <div
@@ -459,10 +515,10 @@
                     <h1 class="text-2xl font-bold text-[#172042] mb-8">Portal de Cotizaciones</h1>
                     <div class="space-y-4">
                         <button onclick="mostrarLoginAsesores()"
-                            class="w-full bg-[#F2A900] hover:bg-[#d89600] text-[#172042] font-bold py-3 px-6 rounded shadow transition-colors flex items-center justify-center gap-2">👤
+                            class="w-full bg-[#F2A900] hover:bg-[#d89600] text-[#172042] font-bold py-3 px-6 rounded shadow transition-colors flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                             Ingresar como Asesor</button>
                         <button onclick="loginAdmin()"
-                            class="w-full border-2 border-[#172042] hover:bg-[#172042] hover:text-white text-[#172042] font-bold py-3 px-6 rounded shadow-sm transition-colors flex items-center justify-center gap-2">👑
+                            class="w-full border-2 border-[#172042] hover:bg-[#172042] hover:text-white text-[#172042] font-bold py-3 px-6 rounded shadow-sm transition-colors flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                             Acceso Administrador</button>
                     </div>
                 </div>
@@ -510,8 +566,11 @@
                             title="Limpiar Filtros">✖</button>
                     </div>
                     <button id="btn-manage-users" onclick="abrirModalUsuarios()"
-                        class="hidden border border-white hover:bg-white hover:text-[#172042] text-white py-2 px-4 rounded text-sm transition-colors">👥 Usuarios</button>
-                    <button onclick="cambiarVista('cotizador')"
+                        class="hidden border border-white hover:bg-white hover:text-[#172042] text-white py-2 px-4 rounded text-sm transition-colors flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        Usuarios
+                    </button>
+                    <button onclick="document.getElementById('modal-tipo-cotizacion').classList.remove('hidden')"
                         class="flex-1 md:flex-none bg-[#F2A900] hover:bg-[#d89600] text-[#172042] font-bold py-2 px-6 rounded shadow">+
                         Nueva Cotización</button>
                     <button onclick="cerrarSesion()"
@@ -693,7 +752,7 @@
                     container.innerHTML = '';
                     users.filter(u => u.username !== 'Admin').forEach(u => {
                         container.innerHTML += `<button onclick="abrirModalLogin('${u.username}')" class="flex flex-col items-center justify-center p-4 bg-white border-2 border-gray-100 hover:border-[#F2A900] rounded-xl shadow-sm hover:shadow-md transition-all group">
-                                <div class="w-12 h-12 rounded-full bg-[#f0f2f5] group-hover:bg-[#172042] flex items-center justify-center text-xl mb-2 transition-colors">👤</div>
+                                <div class="w-12 h-12 rounded-full bg-[#f0f2f5] group-hover:bg-[#172042] flex items-center justify-center text-xl mb-2 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
                                 <h3 class="font-bold text-gray-800 text-sm group-hover:text-[#172042]">${u.username}</h3>
                             </button>`;
                     });
@@ -768,6 +827,7 @@
             window.appData.currentUser = nombre;
             sessionStorage.setItem('currentUser', nombre);
             document.getElementById('dash-username').innerText = nombre;
+            document.getElementById('predisenado-asesor-name').innerText = nombre;
             const badge = document.getElementById('dash-role-badge');
             const btnManageUsers = document.getElementById('btn-manage-users');
             
@@ -967,7 +1027,7 @@
         }
 
         window.eliminarCotizacion = function (id) {
-            if (!confirm('🚨 ¿Estás seguro de que deseas ELIMINAR permanentemente esta cotización? Esta acción no se puede deshacer.')) return;
+            if (!confirm('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg> ¿Estás seguro de que deseas ELIMINAR permanentemente esta cotización? Esta acción no se puede deshacer.')) return;
 
             fetch(`${API_URL}/cotizaciones/${id}`, { method: 'DELETE' })
                 .then(res => res.json())
