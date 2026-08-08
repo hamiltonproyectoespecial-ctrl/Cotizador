@@ -67,11 +67,10 @@ def login():
 def get_usuarios():
     try:
         col = get_usuarios_collection()
-        # Traer todos sin la contraseña para listarlos en el login
-        usuarios_db = list(col.find({}, {"password": 0}))
-        for u in usuarios_db:
+        usuarios = list(col.find({}))
+        for u in usuarios:
             u['_id'] = str(u['_id'])
-        return jsonify(usuarios_db)
+        return jsonify(usuarios)
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
