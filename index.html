@@ -414,6 +414,41 @@
         </div>
     </div>
 
+    <!-- MODAL GESTIÓN DE USUARIOS -->
+    <div id="modal-usuarios"
+        class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center backdrop-blur-sm print:hidden">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl border-t-4 border-[#172042] max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-[#172042]">Gestión de Asesores</h3>
+                <button onclick="cerrarModalUsuarios()" class="text-gray-500 hover:text-red-500 text-xl font-bold">✖</button>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
+                <h4 class="font-bold text-[#172042] mb-3">Crear Nuevo Asesor</h4>
+                <div class="flex flex-col md:flex-row gap-3">
+                    <input type="text" id="new-user-name" placeholder="Nombre completo" class="flex-1 p-2 border rounded outline-none focus:ring-2 focus:ring-[#F2A900]">
+                    <input type="password" id="new-user-pass" placeholder="Contraseña" class="flex-1 p-2 border rounded outline-none focus:ring-2 focus:ring-[#F2A900]">
+                    <button onclick="crearNuevoUsuario()" class="bg-[#F2A900] text-[#172042] font-bold px-4 py-2 rounded hover:bg-[#d89600]">Crear</button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-[#172042] text-white text-sm">
+                            <th class="p-2 text-left rounded-tl">Nombre</th>
+                            <th class="p-2 text-left">Nueva Contraseña (Opcional)</th>
+                            <th class="p-2 text-center rounded-tr">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usuarios-list-admin" class="text-sm">
+                        <!-- Llenado dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <div id="view-login-main" class="view-section active print:hidden">
         <div class="min-h-screen flex items-center justify-center p-6">
             <div
@@ -474,6 +509,8 @@
                             class="ml-2 text-gray-400 hover:text-red-500 transition-colors"
                             title="Limpiar Filtros">✖</button>
                     </div>
+                    <button id="btn-manage-users" onclick="abrirModalUsuarios()"
+                        class="hidden border border-white hover:bg-white hover:text-[#172042] text-white py-2 px-4 rounded text-sm transition-colors">👥 Usuarios</button>
                     <button onclick="cambiarVista('cotizador')"
                         class="flex-1 md:flex-none bg-[#F2A900] hover:bg-[#d89600] text-[#172042] font-bold py-2 px-6 rounded shadow">+
                         Nueva Cotización</button>
@@ -549,8 +586,7 @@
 
     <script>
         const API_URL = 'https://cotizador-ihj3.onrender.com/api';
-        const USERS_LIST = ['Admin', 'Eliu', 'Cesar Montes', 'Danelys Ruiz', 'Eliuth', 'Alejandro', 'Josué'];
-        window.appData = { currentUser: null, isAdminGlobal: false, quotes: [] };
+        window.appData = { currentUser: null, isAdminGlobal: false, quotes: [], usuarios: [] };
         window.ORDER_GRADOS = ["1°", "2°", "3°", "4°", "5°", "6°", "7°", "8°", "9°", "10°", "11°"];
         let targetUserForLogin = '';
 
@@ -648,13 +684,23 @@
 
         function initLoginAsesores() {
             const container = document.getElementById('asesores-container');
-            container.innerHTML = '';
-            USERS_LIST.filter(u => u !== 'Admin').forEach(nombre => {
-                container.innerHTML += `<button onclick="abrirModalLogin('${nombre}')" class="flex flex-col items-center justify-center p-4 bg-white border-2 border-gray-100 hover:border-[#F2A900] rounded-xl shadow-sm hover:shadow-md transition-all group">
-                        <div class="w-12 h-12 rounded-full bg-[#f0f2f5] group-hover:bg-[#172042] flex items-center justify-center text-xl mb-2 transition-colors">👤</div>
-                        <h3 class="font-bold text-gray-800 text-sm group-hover:text-[#172042]">${nombre}</h3>
-                    </button>`;
-            });
+            container.innerHTML = '<p class="col-span-full text-gray-500">Cargando asesores...</p>';
+            
+            fetch(`${API_URL}/usuarios`)
+                .then(res => res.json())
+                .then(users => {
+                    window.appData.usuarios = users;
+                    container.innerHTML = '';
+                    users.filter(u => u.username !== 'Admin').forEach(u => {
+                        container.innerHTML += `<button onclick="abrirModalLogin('${u.username}')" class="flex flex-col items-center justify-center p-4 bg-white border-2 border-gray-100 hover:border-[#F2A900] rounded-xl shadow-sm hover:shadow-md transition-all group">
+                                <div class="w-12 h-12 rounded-full bg-[#f0f2f5] group-hover:bg-[#172042] flex items-center justify-center text-xl mb-2 transition-colors">👤</div>
+                                <h3 class="font-bold text-gray-800 text-sm group-hover:text-[#172042]">${u.username}</h3>
+                            </button>`;
+                    });
+                })
+                .catch(() => {
+                    container.innerHTML = '<p class="col-span-full text-red-500">Error al cargar usuarios de la base de datos.</p>';
+                });
         }
 
         function loginAdmin() { abrirModalLogin('Admin'); }
@@ -723,7 +769,15 @@
             sessionStorage.setItem('currentUser', nombre);
             document.getElementById('dash-username').innerText = nombre;
             const badge = document.getElementById('dash-role-badge');
-            if (window.appData.isAdminGlobal) badge.classList.remove('hidden'); else badge.classList.add('hidden');
+            const btnManageUsers = document.getElementById('btn-manage-users');
+            
+            if (window.appData.isAdminGlobal) {
+                badge.classList.remove('hidden');
+                btnManageUsers.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+                btnManageUsers.classList.add('hidden');
+            }
             cambiarVista('dashboard');
 
             fetch(`${API_URL}/cotizaciones`).then(res => res.json()).then(data => {
@@ -793,24 +847,125 @@
         }
 
         window.guardarLead = function () {
-            const id = parseInt(document.getElementById('lead-quote-id').value);
+            const id = document.getElementById('lead-quote-id').value;
             const estado = document.getElementById('lead-estado').value;
             let monto = parseFloat(document.getElementById('lead-monto').value) || 0;
             if (estado !== 'Vendido') monto = 0;
 
             fetch(`${API_URL}/cotizaciones/${id}`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ estadoLead: estado, montoVendido: monto })
-            })
+            }).then(res => res.json()).then(data => {
+                if(data.success) {
+                    const qIndex = window.appData.quotes.findIndex(q => q.id === id);
+                    if (qIndex !== -1) {
+                        window.appData.quotes[qIndex].estadoLead = estado;
+                        window.appData.quotes[qIndex].montoVendido = monto;
+                    }
+                    window.mostrarToast("Estado actualizado correctamente");
+                    cerrarModalLead();
+                    renderizarDashboard();
+                } else {
+                    window.mostrarToast("Error al actualizar");
+                }
+            });
+        }
+
+        // --- GESTIÓN DE USUARIOS (ADMIN) ---
+        function abrirModalUsuarios() {
+            document.getElementById('modal-usuarios').classList.remove('hidden');
+            cargarListaUsuariosAdmin();
+        }
+
+        function cerrarModalUsuarios() {
+            document.getElementById('modal-usuarios').classList.add('hidden');
+            initLoginAsesores(); // Refrescar menú de login por si acaso
+        }
+
+        function cargarListaUsuariosAdmin() {
+            const tbody = document.getElementById('usuarios-list-admin');
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4">Cargando usuarios...</td></tr>';
+            fetch(`${API_URL}/usuarios`)
                 .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        const qIndex = window.appData.quotes.findIndex(q => q.id === id);
-                        if (qIndex !== -1) {
-                            window.appData.quotes[qIndex].estadoLead = estado;
-                            window.appData.quotes[qIndex].montoVendido = monto;
-                        }
-                        window.cerrarModalLead();
+                .then(users => {
+                    tbody.innerHTML = '';
+                    users.forEach(u => {
+                        const isMainAdmin = u.username === 'Admin';
+                        tbody.innerHTML += `
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-2">
+                                    <input type="text" id="edit-name-${u._id}" value="${u.username}" ${isMainAdmin ? 'disabled' : ''} class="w-full p-1 border rounded ${isMainAdmin ? 'bg-gray-100 text-gray-500' : ''}">
+                                </td>
+                                <td class="p-2">
+                                    <input type="password" id="edit-pass-${u._id}" placeholder="Escribe para cambiar" class="w-full p-1 border rounded">
+                                </td>
+                                <td class="p-2 text-center">
+                                    <button onclick="actualizarUsuario('${u._id}')" class="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded shadow mr-1">Guardar</button>
+                                    ${!isMainAdmin ? `<button onclick="eliminarUsuario('${u._id}')" class="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded shadow">X</button>` : ''}
+                                </td>
+                            </tr>
+                        `;
+                    });
+                });
+        }
+
+        function crearNuevoUsuario() {
+            const username = document.getElementById('new-user-name').value.trim();
+            const password = document.getElementById('new-user-pass').value.trim();
+            if(!username || !password) return window.mostrarToast("Falta nombre o contraseña");
+            
+            fetch(`${API_URL}/usuarios`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, role: 'asesor' })
+            }).then(res => res.json()).then(data => {
+                if(data.success) {
+                    window.mostrarToast("Usuario creado con éxito");
+                    document.getElementById('new-user-name').value = '';
+                    document.getElementById('new-user-pass').value = '';
+                    cargarListaUsuariosAdmin();
+                } else {
+                    window.mostrarToast(data.message || "Error al crear usuario");
+                }
+            });
+        }
+
+        function actualizarUsuario(id) {
+            const username = document.getElementById(`edit-name-${id}`).value.trim();
+            const password = document.getElementById(`edit-pass-${id}`).value.trim();
+            
+            const payload = {};
+            if(username) payload.username = username;
+            if(password) payload.password = password;
+            
+            fetch(`${API_URL}/usuarios/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(res => res.json()).then(data => {
+                if(data.success) {
+                    window.mostrarToast("Usuario actualizado");
+                    document.getElementById(`edit-pass-${id}`).value = ''; // Limpiar campo de contraseña
+                } else {
+                    window.mostrarToast(data.message || "Error al actualizar");
+                }
+            });
+        }
+
+        function eliminarUsuario(id) {
+            if(!confirm("¿Estás seguro de que quieres eliminar este asesor?")) return;
+            fetch(`${API_URL}/usuarios/${id}`, { method: 'DELETE' })
+            .then(res => res.json()).then(data => {
+                if(data.success) {
+                    window.mostrarToast("Usuario eliminado");
+                    cargarListaUsuariosAdmin();
+                } else {
+                    window.mostrarToast(data.message || "Error al eliminar");
+                }
+            });
+        }
+
                         renderizarDashboard();
                         window.mostrarToast('Estado actualizado exitosamente');
                     }

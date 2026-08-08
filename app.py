@@ -14,42 +14,128 @@ except ImportError:
 app = Flask(__name__)
 CORS(app) # Permite que tu HTML se comunique con Python sin errores de CORS
 
-# LÓGICA DE USUARIOS Y CONTRASEÑAS
-USERS = {
-    'Admin': {'role': 'admin', 'pass': 'AdminBarónD'},
-    'Eliu': {'role': 'asesor', 'pass': 'ELIU'},
-    'Cesar Montes': {'role': 'asesor', 'pass': 'CESAR MONTES'},
-    'Danelys Ruiz': {'role': 'asesor', 'pass': 'DANELYS RUIZ'},
-    'Eliuth': {'role': 'asesor', 'pass': 'ELIUTH'},
-    'Alejandro': {'role': 'asesor', 'pass': 'ALEJANDRO'},
-    'Josué': {'role': 'asesor', 'pass': 'JOSUÉ'}
-}
-
 # --- CONEXIÓN A MONGODB ATLAS ---
-def get_cotizaciones_collection():
+def get_db():
     mongo_uri = os.getenv("MONGO_URI")
     if not mongo_uri:
         raise Exception("Error: Falta configurar la variable MONGO_URI en el archivo .env o en el panel de Render.")
     
     db_name = os.getenv("MONGO_DB_NAME", "hamilton_cotizador_proyectos")
     
-    # Reutilizamos el cliente global para evitar abrir conexiones múltiples por petición
-    if not hasattr(get_cotizaciones_collection, 'client') or get_cotizaciones_collection.client is None:
-        get_cotizaciones_collection.client = MongoClient(mongo_uri)
+    if not hasattr(get_db, 'client') or get_db.client is None:
+        get_db.client = MongoClient(mongo_uri)
         
-    db = get_cotizaciones_collection.client[db_name]
-    return db["cotizaciones"]
+    return get_db.client[db_name]
+
+def get_cotizaciones_collection():
+    return get_db()["cotizaciones"]
+
+def get_usuarios_collection():
+    db = get_db()
+    col = db["usuarios"]
+    # Seed (Crear Admin por defecto si la colección está vacía)
+    if col.count_documents({}) == 0:
+        col.insert_one({
+            "username": "Admin",
+            "password": "AdminBarónD",
+            "role": "admin"
+        })
+    return col
+
+# Las funciones de conexión ya fueron declaradas arriba
 
 # --- RUTAS ---
 
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
-    user = data.get('user')
+    username = data.get('user')
     password = data.get('password')
-    if user in USERS and USERS[user]['pass'] == password:
-        return jsonify({"success": True, "role": USERS[user]['role']})
-    return jsonify({"success": False, "message": "Usuario o contraseña incorrectos"}), 401
+    
+    try:
+        col = get_usuarios_collection()
+        user_doc = col.find_one({"username": username})
+        
+        if user_doc and user_doc.get('password') == password:
+            return jsonify({"success": True, "role": user_doc.get('role', 'asesor')})
+            
+        return jsonify({"success": False, "message": "Usuario o contraseña incorrectos"}), 401
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/usuarios', methods=['GET'])
+def get_usuarios():
+    try:
+        col = get_usuarios_collection()
+        # Traer todos sin la contraseña para listarlos en el login
+        usuarios_db = list(col.find({}, {"password": 0}))
+        for u in usuarios_db:
+            u['_id'] = str(u['_id'])
+        return jsonify(usuarios_db)
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/usuarios', methods=['POST'])
+def create_usuario():
+    try:
+        data = request.json
+        username = data.get('username')
+        password = data.get('password')
+        role = data.get('role', 'asesor')
+        
+        if not username or not password:
+            return jsonify({"success": False, "message": "Usuario y contraseña son requeridos"}), 400
+            
+        col = get_usuarios_collection()
+        if col.find_one({"username": username}):
+            return jsonify({"success": False, "message": "El usuario ya existe"}), 400
+            
+        col.insert_one({"username": username, "password": password, "role": role})
+        return jsonify({"success": True, "message": "Usuario creado"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/usuarios/<user_id>', methods=['PUT'])
+def update_usuario(user_id):
+    from bson.objectid import ObjectId
+    try:
+        data = request.json
+        update_fields = {}
+        if 'username' in data and data['username'].strip():
+            update_fields['username'] = data['username'].strip()
+        if 'password' in data and data['password'].strip():
+            update_fields['password'] = data['password'].strip()
+            
+        if not update_fields:
+            return jsonify({"success": False, "message": "No hay datos para actualizar"}), 400
+            
+        col = get_usuarios_collection()
+        result = col.update_one({"_id": ObjectId(user_id)}, {"$set": update_fields})
+        
+        if result.matched_count > 0:
+            return jsonify({"success": True, "message": "Usuario actualizado"})
+        else:
+            return jsonify({"success": False, "message": "Usuario no encontrado"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/usuarios/<user_id>', methods=['DELETE'])
+def delete_usuario(user_id):
+    from bson.objectid import ObjectId
+    try:
+        col = get_usuarios_collection()
+        user_doc = col.find_one({"_id": ObjectId(user_id)})
+        
+        if user_doc and user_doc.get("username") == "Admin":
+            return jsonify({"success": False, "message": "No se puede eliminar al Administrador principal"}), 403
+            
+        result = col.delete_one({"_id": ObjectId(user_id)})
+        if result.deleted_count > 0:
+            return jsonify({"success": True, "message": "Usuario eliminado"})
+        else:
+            return jsonify({"success": False, "message": "Usuario no encontrado"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 @app.route('/api/cotizaciones', methods=['GET', 'POST'])
