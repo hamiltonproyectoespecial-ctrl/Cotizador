@@ -823,8 +823,9 @@
         }
 
         function volverAdmin() {
-            window.appData.currentUser = 'Admin';
-            sessionStorage.setItem('currentUser', 'Admin');
+            const originalAdmin = sessionStorage.getItem('adminOriginalName') || (window.appData.usuarios && window.appData.usuarios.find(u => u.role === 'admin')?.username) || 'Admin';
+            window.appData.currentUser = originalAdmin;
+            sessionStorage.setItem('currentUser', originalAdmin);
             document.getElementById('dash-username').innerText = adminOriginalName;
 
             fetch(`${API_URL}/cotizaciones`).then(res => res.json()).then(data => {
