@@ -826,7 +826,7 @@
             const originalAdmin = sessionStorage.getItem('adminOriginalName') || (window.appData.usuarios && window.appData.usuarios.find(u => u.role === 'admin')?.username) || 'Admin';
             window.appData.currentUser = originalAdmin;
             sessionStorage.setItem('currentUser', originalAdmin);
-            document.getElementById('dash-username').innerText = adminOriginalName;
+            document.getElementById('dash-username').innerText = originalAdmin;
 
             fetch(`${API_URL}/cotizaciones`).then(res => res.json()).then(data => {
                 window.appData.quotes = data;
@@ -1148,6 +1148,9 @@
                                 <button onclick="window.cambiarAdminTab('historial')" class="w-full text-left px-6 py-4 hover:bg-[#22305c] hover:text-white transition-colors border-l-4 ${activeTab === 'historial' ? 'border-[#F2A900] bg-[#22305c] text-white font-bold' : 'border-transparent'} flex items-center gap-3">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Todas Cotizaciones
                                 </button>
+                                <button onclick="window.cambiarAdminTab('precios')" class="w-full text-left px-6 py-4 hover:bg-[#22305c] hover:text-white transition-colors border-l-4 ${activeTab === 'precios' ? 'border-[#F2A900] bg-[#22305c] text-white font-bold' : 'border-transparent'} flex items-center gap-3 border-t border-gray-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Valores Prediseñados
+                                </button>
                              </div>
                              
                              <div class="flex-1 p-6 md:p-10 bg-transparent overflow-y-auto w-full">`;
@@ -1267,6 +1270,63 @@
                     html += `</tbody></table></div>`;
                 }
 
+                if (activeTab === 'precios') {
+                    const s = window.adminSettings || { planesPrices: {}, mallasPrices: {A:0,B:0,Y:0}, globalExamenPrice: 0 };
+                    let planesRows = '';
+                    const AREAS = ['Lenguaje', 'Matemáticas', 'Estadística', 'Geometría', 'Sociales', 'Historia', 'Geografía', 'Filosofía', 'Economía', 'Política', 'Eco política', 'Democracia', 'Cátedra socio emocional', 'Naturales', 'Biología', 'Medio ambiente', 'Química', 'Física', 'Inglés', 'Informática', 'Edu física', 'Religión', 'Ética', 'Artística'];
+                    AREAS.forEach(area => {
+                        const p3 = s.planesPrices[area]?.[3] || '';
+                        const p4 = s.planesPrices[area]?.[4] || '';
+                        planesRows += `
+                            <tr class="hover:bg-blue-50 transition-colors">
+                                <td class="p-3 font-bold text-gray-700 bg-gray-50 border-r border-gray-200">${area}</td>
+                                <td class="p-3"><input type="number" id="plane-${area}-3" value="${p3}" class="border border-gray-300 p-2 w-full rounded focus:ring-2 focus:ring-[#F2A900] outline-none font-mono" placeholder="0" /></td>
+                                <td class="p-3"><input type="number" id="plane-${area}-4" value="${p4}" class="border border-gray-300 p-2 w-full rounded focus:ring-2 focus:ring-[#F2A900] outline-none font-mono" placeholder="0" /></td>
+                            </tr>
+                        `;
+                    });
+
+                    html += `
+                        <div class="bg-white p-6 rounded-lg shadow border border-gray-100 max-w-5xl mt-6 mx-auto">
+                            <h3 class="text-2xl font-bold text-[#172042] mb-6">⚙️ Valores Prediseñados Globales</h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm">
+                                    <h4 class="font-bold text-[#172042] mb-4 border-b pb-2">Precios Globales Mallas</h4>
+                                    <div class="space-y-4">
+                                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Mallas Ver A ($)</label><input type="number" id="set-malla-a" value="${s.mallasPrices.A || ''}" class="w-full border rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#F2A900]" /></div>
+                                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Mallas Ver B ($)</label><input type="number" id="set-malla-b" value="${s.mallasPrices.B || ''}" class="w-full border rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#F2A900]" /></div>
+                                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Mallas Ver Y ($)</label><input type="number" id="set-malla-y" value="${s.mallasPrices.Y || ''}" class="w-full border rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#F2A900]" /></div>
+                                    </div>
+                                </div>
+                                <div class="bg-green-50 p-4 rounded-xl border border-green-200 shadow-sm h-fit">
+                                    <h4 class="font-bold text-green-900 mb-4 border-b border-green-200 pb-2">Precio Global Exámenes</h4>
+                                    <div><label class="block text-xs font-bold text-green-800 mb-1">Valor Unitario por Examen ($)</label><input type="number" id="set-examen" value="${s.globalExamenPrice || ''}" class="w-full border border-green-300 rounded p-2 outline-none font-mono focus:ring-2 focus:ring-green-500" /></div>
+                                </div>
+                            </div>
+
+                            <h4 class="font-bold text-[#172042] mb-4 border-b pb-2">Precios de Planes por Área</h4>
+                            <div class="overflow-x-auto border border-gray-200 rounded-lg h-96 overflow-y-auto mb-6 shadow-inner bg-white">
+                                <table class="w-full text-left text-sm border-collapse">
+                                    <thead class="bg-[#172042] text-white sticky top-0 z-10 shadow">
+                                        <tr>
+                                            <th class="p-3 border-b border-gray-700">Área</th>
+                                            <th class="p-3 border-b border-gray-700 w-1/3">Valor 3 Periodos ($)</th>
+                                            <th class="p-3 border-b border-gray-700 w-1/3">Valor 4 Periodos ($)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200">
+                                        ${planesRows}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <button onclick="window.guardarPreciosAdmin()" class="w-full bg-[#172042] hover:bg-[#22305c] text-[#F2A900] font-bold py-4 rounded-xl shadow transition-colors text-lg flex justify-center items-center gap-2 border border-[#F2A900]">
+                                Guardar Todos los Valores en la Nube
+                            </button>
+                        </div>
+                    `;
+                }
                 html += `</div></div>`;
             } else {
                 html += `<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -1314,9 +1374,11 @@
                             <td class="p-3 text-center align-middle">${actionsHtml}</td>
                         </tr>`;
                     });
+
                 }
                 html += `</tbody></table></div>`;
             }
+
             container.innerHTML = html;
 
             setTimeout(() => {
