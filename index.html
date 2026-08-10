@@ -755,7 +755,7 @@
                 .then(users => {
                     window.appData.usuarios = users;
                     container.innerHTML = '';
-                    users.filter(u => u.username !== 'Admin').forEach(u => {
+                    users.filter(u => u.role !== 'admin').forEach(u => {
                         container.innerHTML += `<button onclick="abrirModalLogin('${u.username}')" class="flex flex-col items-center justify-center p-4 bg-white border-2 border-gray-100 hover:border-[#F2A900] rounded-xl shadow-sm hover:shadow-md transition-all group">
                                 <div class="w-12 h-12 rounded-full bg-[#f0f2f5] group-hover:bg-[#172042] flex items-center justify-center text-xl mb-2 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
                                 <h3 class="font-bold text-gray-800 text-sm group-hover:text-[#172042]">${u.username}</h3>
@@ -767,7 +767,14 @@
                 });
         }
 
-        function loginAdmin() { abrirModalLogin('Admin'); }
+        function loginAdmin() {
+            const adminUser = window.appData.usuarios && window.appData.usuarios.find(u => u.role === 'admin');
+            if (adminUser) {
+                abrirModalLogin(adminUser.username);
+            } else {
+                window.mostrarToast("No hay administradores configurados en la base de datos.");
+            }
+        }
 
         function abrirModalLogin(nombre) {
             targetUserForLogin = nombre;
