@@ -825,7 +825,7 @@
         function volverAdmin() {
             window.appData.currentUser = 'Admin';
             sessionStorage.setItem('currentUser', 'Admin');
-            document.getElementById('dash-username').innerText = 'Admin';
+            document.getElementById('dash-username').innerText = adminOriginalName;
 
             fetch(`${API_URL}/cotizaciones`).then(res => res.json()).then(data => {
                 window.appData.quotes = data;
@@ -854,7 +854,7 @@
             fetch(`${API_URL}/cotizaciones`).then(res => res.json()).then(data => {
                 window.appData.quotes = data;
                 renderizarDashboard();
-                if (window.appData.isAdminGlobal && nombre === 'Admin') {
+                if (window.appData.isAdminGlobal && nombre === (sessionStorage.getItem('adminOriginalName') || 'Admin')) {
                     window.mostrarToast(`Sesión iniciada como Administrador. Historial actualizado.`);
                 } else {
                     window.mostrarToast(`Has ingresado como asesor: ${nombre}. Historial actualizado.`);
@@ -869,7 +869,7 @@
             const wasAdmin = sessionStorage.getItem('isAdmin') === 'true';
             sessionStorage.removeItem('currentUser');
             sessionStorage.removeItem('isAdmin');
-            window.appData.currentUser = null; window.appData.isAdminGlobal = false;
+            window.appData.currentUser = null; window.appData.isAdminGlobal = false; sessionStorage.removeItem('adminOriginalName');
             if (wasAdmin) window.location.reload(); else cambiarVista('login-asesores');
         }
 
@@ -963,7 +963,7 @@
                     tbody.innerHTML = '';
                     window.appData.usuarios = users;
                     users.forEach(u => {
-                        const isMainAdmin = u.username === 'Admin';
+                        const isMainAdmin = u.role === 'admin';
                         tbody.innerHTML += `
                             <tr class="border-b hover:bg-gray-50">
                                 <td class="p-2">
@@ -1080,8 +1080,9 @@
 
             const container = document.getElementById('dashboard-content');
             const isAdminGlobal = window.appData.isAdminGlobal;
-            const isViewingAsAdmin = isAdminGlobal && currentUser === 'Admin';
-            const isViewingAsSeller = isAdminGlobal && currentUser !== 'Admin';
+            const adminOriginalName = sessionStorage.getItem('adminOriginalName') || (window.appData.usuarios && window.appData.usuarios.find(u => u.role === 'admin')?.username) || 'Admin';
+            const isViewingAsAdmin = isAdminGlobal && currentUser === adminOriginalName;
+            const isViewingAsSeller = isAdminGlobal && currentUser !== adminOriginalName;
 
             const startVal = document.getElementById('filter-start').value;
             const endVal = document.getElementById('filter-end').value;
@@ -1113,7 +1114,7 @@
                 html += `<h2 class="text-xl font-bold text-[#172042] mb-4 border-b pb-2">Herramientas de Administrador</h2>
                          <p class="text-sm text-gray-600 mb-4">Seleccione un asesor para ingresar a su perfil y ver/crear cotizaciones en su nombre.</p>
                          <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 mb-8">`;
-                USERS_LIST.filter(u => u !== 'Admin').forEach(nombre => { html += `<button onclick="entrarComo('${nombre}')" class="p-3 bg-white border hover:border-[#F2A900] rounded shadow-sm text-sm font-bold text-gray-700 hover:text-[#172042]">Ver como ${nombre.split(' ')[0]}</button>`; });
+                USERS_LIST.filter(u => { const userObj = window.appData.usuarios && window.appData.usuarios.find(x => x.username === u); return userObj ? userObj.role !== 'admin' : (u !== adminOriginalName); }).forEach(nombre => { html += `<button onclick="entrarComo('${nombre}')" class="p-3 bg-white border hover:border-[#F2A900] rounded shadow-sm text-sm font-bold text-gray-700 hover:text-[#172042]">Ver como ${nombre.split(' ')[0]}</button>`; });
                 html += `</div>`;
             } else if (isViewingAsSeller) {
                 html += `<div class="mb-6 bg-[#172042] text-white p-4 rounded-xl flex justify-between items-center shadow-lg">
