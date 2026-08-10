@@ -36,7 +36,7 @@ def get_usuarios_collection():
     # Seed (Crear Admin por defecto si la colección está vacía)
     if col.count_documents({}) == 0:
         col.insert_one({
-            "username": "Admin",
+            "username": "Yeison Barón",
             "password": "AdminBarónD",
             "role": "admin"
         })
@@ -125,7 +125,7 @@ def delete_usuario(user_id):
         col = get_usuarios_collection()
         user_doc = col.find_one({"_id": ObjectId(user_id)})
         
-        if user_doc and user_doc.get("username") == "Admin":
+        if user_doc and user_doc.get("username") == "Yeison Barón":
             return jsonify({"success": False, "message": "No se puede eliminar al Administrador principal"}), 403
             
         result = col.delete_one({"_id": ObjectId(user_id)})
@@ -241,3 +241,23 @@ def delete_cotizacion(quote_id):
 if __name__ == '__main__':
     # Usamos port 10000 para mantener compatibilidad con Render y el entorno local
     app.run(debug=True, port=10000)
+
+def get_settings_collection():
+    db = get_db()
+    return db["settings"]
+
+@app.route('/api/settings', methods=['GET', 'POST'])
+def manage_settings():
+    coll = get_settings_collection()
+    if request.method == 'POST':
+        data = request.json
+        coll.update_one({"_id": "global"}, {"$set": data}, upsert=True)
+        return jsonify({"success": True, "message": "Settings saved"})
+    else:
+        doc = coll.find_one({"_id": "global"})
+        if not doc:
+            doc = {}
+        if '_id' in doc:
+            del doc['_id']
+        return jsonify(doc)
+

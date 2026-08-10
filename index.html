@@ -8,6 +8,7 @@
     <title>Cotizador Educativo - Hamilton</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -49,16 +50,16 @@
 
         /* MODO OSCURO - AZUL GALÁCTICO INTERACTIVO */
         :root {
-            --bg-galaxy: #020617; /* Slate 950, deepest blue */
-            --bg-panel: #0f172a;  /* Slate 900 */
-            --bg-hover: #1e293b;  /* Slate 800 */
-            --text-main: #f8fafc; /* Slate 50 */
-            --text-muted: #94a3b8; /* Slate 400 */
-            --border-dark: #1e293b; /* Slate 800 */
+            --bg-galaxy: #080B14; /* Slate 950, deepest blue */
+            --bg-panel: #111625;  /* Slate 900 */
+            --bg-hover: #1A2235;  /* Slate 800 */
+            --text-main: #E0E7FF; /* Slate 50 */
+            --text-muted: #94A3B8; /* Slate 400 */
+            --border-dark: #1E293B; /* Slate 800 */
             --mustard-dark: #f59e0b;
             /* interactive blues */
-            --accent-blue: #38bdf8;
-            --accent-blue-hover: #0ea5e9;
+            --accent-blue: #00E5FF;
+            --accent-blue-hover: #00B8D4;
         }
 
         html.dark-mode body {
@@ -368,9 +369,7 @@
 
     <div id="toast-container" class="print:hidden"></div>
 
-    <button id="btn-darkmode" onclick="window.toggleDarkMode()"
-        class="fixed bottom-6 right-6 w-14 h-14 bg-[#172042] text-white rounded-full shadow-2xl flex items-center justify-center text-3xl hover:scale-110 transition-transform z-[100] print:hidden border-2 border-[#F2A900]"
-        title="Alternar Tema">☯</button>
+    
 
     <div id="modal-password"
         class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center backdrop-blur-sm print:hidden">
@@ -3531,44 +3530,72 @@ const DEFAULT_AREAS = [
 ];
 
 const DEFAULT_EXAMENES = ['Lenguaje', 'Sociales', 'Matemáticas', 'Naturales', 'Inglés'];
-
 const GRADOS = ["Preescolar", "1°", "2°", "3°", "4°", "5°", "6°", "7°", "8°", "9°", "10°", "11°"];
 
 function CotizadorPredisenadoApp() {
     const [step, setStep] = useState('form');
     const [activeTab, setActiveTab] = useState('mallas');
 
-    // Client Info
-    const [institution, setInstitution] = useState('');
-    const [phone, setPhone] = useState('');
-    const [email, setEmail] = useState('');
+    // Docente Info
+    const [docenteNombre, setDocenteNombre] = useState('');
+    const [docenteNumero, setDocenteNumero] = useState('');
+    const [docenteCorreo, setDocenteCorreo] = useState('');
+    const [lead, setLead] = useState('');
+    
+    // Grados Selector Global
     const [selectedGrades, setSelectedGrades] = useState([]);
+    const [descuentoPorcentaje, setDescuentoPorcentaje] = useState(0);
 
-    // Custom Areas
     const [customAreas, setCustomAreas] = useState(() => {
         const saved = localStorage.getItem('predisenado_custom_areas');
         return saved ? JSON.parse(saved) : [];
     });
     const [newAreaName, setNewAreaName] = useState('');
-
     const allAreas = [...DEFAULT_AREAS, ...customAreas];
 
-    // Mallas Config
+    // Global settings for periods & prices
     const [mallasPeriods, setMallasPeriods] = useState(4);
     const [mallasPrices, setMallasPrices] = useState({ A: 0, B: 0, Y: 0 });
-    const [mallasSelections, setMallasSelections] = useState({});
-
-    // Planes Config
     const [planesPeriods, setPlanesPeriods] = useState(4);
-    const [planesPrices, setPlanesPrices] = useState({ A: 0, B: 0, Y: 0 });
-    const [planesSelections, setPlanesSelections] = useState({});
 
-    // Exámenes Config
-    const [examenes, setExamenes] = useState(() => {
-        const obj = {};
-        DEFAULT_EXAMENES.forEach(ex => obj[ex] = { active: false, price: 0 });
-        return obj;
-    });
+    // Active configurations in the grid
+    const [mallasConfig, setMallasConfig] = useState({});
+    const [planesConfig, setPlanesConfig] = useState({});
+
+    // The Cart
+    const [cart, setCart] = useState([]);
+
+    // SETTINGS (MongoDB Sync)
+    const [settings, setSettings] = useState({ planesPrices: {}, globalExamenPrice: 0 });
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    useEffect(() => {
+        const user = window.appData?.currentUser;
+        const role = window.appData?.role || localStorage.getItem('userRole');
+        
+        // Broad admin check in case localstorage still has old 'Admin'
+        if (user === 'Yeison Barón' || user === 'Admin' || role === 'admin') {
+            setIsAdmin(true);
+        }
+        
+        fetch(window.API_URL ? `${window.API_URL}/settings` : '/api/settings')
+            .then(res => res.json())
+            .then(data => {
+                setSettings({
+                    planesPrices: data.planesPrices || {},
+                    globalExamenPrice: data.globalExamenPrice || 0
+                });
+            }).catch(e => console.error("Error loading settings:", e));
+    }, []);
+
+    const saveSettings = (newSettings) => {
+        setSettings(newSettings);
+        fetch(window.API_URL ? `${window.API_URL}/settings` : '/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newSettings)
+        });
+    };
 
     const addCustomArea = () => {
         const name = newAreaName.trim();
@@ -3584,74 +3611,147 @@ function CotizadorPredisenadoApp() {
         setSelectedGrades(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]);
     };
 
-    const handleMallasToggle = (area) => {
-        setMallasSelections(prev => ({
+    const toggleMallasConfig = (area) => {
+        setMallasConfig(prev => ({
             ...prev,
-            [area]: prev[area] ? { ...prev[area], active: !prev[area].active } : { active: true, version: 'A' }
+            [area]: prev[area] ? { ...prev[area], expanded: !prev[area].expanded } : { expanded: true, version: 'A' }
         }));
     };
+    const setMallasVersion = (area, version) => setMallasConfig(prev => ({ ...prev, [area]: { ...prev[area], version } }));
 
-    const handleMallasVersion = (area, version) => {
-        setMallasSelections(prev => ({
+    const togglePlanesConfig = (area) => {
+        setPlanesConfig(prev => ({
             ...prev,
-            [area]: { ...prev[area], version }
+            [area]: prev[area] ? { ...prev[area], expanded: !prev[area].expanded } : { expanded: true, version: 'A' }
         }));
     };
+    const setPlanesVersion = (area, version) => setPlanesConfig(prev => ({ ...prev, [area]: { ...prev[area], version } }));
 
-    const handlePlanesToggle = (area) => {
-        setPlanesSelections(prev => ({
-            ...prev,
-            [area]: prev[area] ? { ...prev[area], active: !prev[area].active } : { active: true, version: 'A' }
-        }));
+    const [editingPlane, setEditingPlane] = useState(null); 
+    const [tempPlanePrice, setTempPlanePrice] = useState(0);
+
+    const getPlanePrice = (area, version, periods) => {
+        return settings.planesPrices?.[area]?.[version]?.[periods] || 0;
     };
 
-    const handlePlanesVersion = (area, version) => {
-        setPlanesSelections(prev => ({
-            ...prev,
-            [area]: { ...prev[area], version }
-        }));
+    const savePlanePrice = (area, version, periods) => {
+        const newSettings = JSON.parse(JSON.stringify(settings));
+        if (!newSettings.planesPrices) newSettings.planesPrices = {};
+        if (!newSettings.planesPrices[area]) newSettings.planesPrices[area] = {};
+        if (!newSettings.planesPrices[area][version]) newSettings.planesPrices[area][version] = {};
+        newSettings.planesPrices[area][version][periods] = Number(tempPlanePrice) || 0;
+        
+        saveSettings(newSettings);
+        setEditingPlane(null);
     };
 
-    const handleExamenToggle = (ex) => {
-        setExamenes(prev => ({
-            ...prev,
-            [ex]: { ...prev[ex], active: !prev[ex].active }
-        }));
+    const handleGlobalExamenPrice = (price) => {
+        saveSettings({...settings, globalExamenPrice: Number(price) || 0});
     };
 
-    const handleExamenPrice = (ex, price) => {
-        setExamenes(prev => ({
-            ...prev,
-            [ex]: { ...prev[ex], price: Number(price) || 0 }
-        }));
+    const addToCartMallas = (area) => {
+        if (selectedGrades.length === 0) return alert("Selecciona al menos un grado arriba.");
+        const version = mallasConfig[area]?.version || 'A';
+        const finalValue = mallasPrices[version] || 0;
+        
+        setCart([...cart, {
+            id: Date.now() + Math.random(),
+            category: 'mallas',
+            area,
+            grades: [...selectedGrades],
+            version,
+            periods: mallasPeriods,
+            price: finalValue, 
+            total: finalValue // Mallas value is final, no period multiplication needed
+        }]);
+        window.mostrarToast && window.mostrarToast(`Añadido: ${area} (Mallas)`);
+    };
+
+    const addToCartPlanes = (area) => {
+        if (selectedGrades.length === 0) return alert("Selecciona al menos un grado arriba.");
+        const version = planesConfig[area]?.version || 'A';
+        const totalVal = getPlanePrice(area, version, planesPeriods);
+        setCart([...cart, {
+            id: Date.now() + Math.random(),
+            category: 'planes',
+            area,
+            grades: [...selectedGrades],
+            version,
+            periods: planesPeriods,
+            price: totalVal, 
+            total: totalVal
+        }]);
+        window.mostrarToast && window.mostrarToast(`Añadido: ${area} (Planes)`);
+    };
+
+    const addToCartExamenes = (area) => {
+        if (selectedGrades.length === 0) return alert("Selecciona al menos un grado arriba.");
+        const val = settings.globalExamenPrice || 0;
+        setCart([...cart, {
+            id: Date.now() + Math.random(),
+            category: 'examenes',
+            area,
+            grades: [...selectedGrades],
+            examenesCount: selectedGrades.length,
+            price: val,
+            total: val * selectedGrades.length
+        }]);
+        window.mostrarToast && window.mostrarToast(`Añadido: ${area} (Exámenes)`);
+    };
+
+    const removeFromCart = (id) => {
+        setCart(cart.filter(item => item.id !== id));
     };
 
     const calculateTotals = () => {
-        let mallasTotal = 0;
-        Object.keys(mallasSelections).forEach(area => {
-            if (mallasSelections[area].active) {
-                mallasTotal += (mallasPrices[mallasSelections[area].version] || 0) * mallasPeriods;
-            }
-        });
-
-        let planesTotal = 0;
-        Object.keys(planesSelections).forEach(area => {
-            if (planesSelections[area].active) {
-                planesTotal += (planesPrices[planesSelections[area].version] || 0) * planesPeriods;
-            }
-        });
-
-        let examenesTotal = 0;
-        Object.keys(examenes).forEach(ex => {
-            if (examenes[ex].active) {
-                examenesTotal += (examenes[ex].price || 0) * selectedGrades.length;
-            }
-        });
-
-        return { mallasTotal, planesTotal, examenesTotal, grandTotal: mallasTotal + planesTotal + examenesTotal };
+        const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
+        const desc = subtotal * (descuentoPorcentaje / 100);
+        return { subtotal, desc, finalTotal: subtotal - desc };
     };
 
-    const { mallasTotal, planesTotal, examenesTotal, grandTotal } = calculateTotals();
+    const { subtotal, desc, finalTotal } = calculateTotals();
+
+    const handleCopyImage = () => {
+        const container = document.getElementById('cotizacion-pdf-content');
+        if (!container || !window.html2canvas) return;
+        
+        const buttons = document.getElementById('quote-controls');
+        if (buttons) buttons.style.display = 'none';
+
+        window.html2canvas(container, { scale: 2 }).then(canvas => {
+            if (buttons) buttons.style.display = 'flex';
+            canvas.toBlob(blob => {
+                if (!blob) return;
+                navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => {
+                    window.mostrarToast && window.mostrarToast('¡Cotización copiada como imagen!');
+                    
+                    const nueva = {
+                        id: Date.now(), 
+                        user: window.appData?.currentUser || 'Yeison Barón', 
+                        cliente: docenteNombre, 
+                        contacto: docenteNumero || docenteCorreo, 
+                        servicio: 'Cotización Prediseñada', 
+                        total: finalTotal, 
+                        itemsData: cart, 
+                        descPercentage: descuentoPorcentaje,
+                        fecha: new Date().toISOString(), 
+                        estadoLead: 'Pendiente', 
+                        montoVendido: 0, 
+                        lead: lead || ''
+                    };
+                    
+                    if (window.appData && window.appData.quotes) {
+                        window.appData.quotes.push(nueva);
+                    }
+                    fetch(window.API_URL ? `${window.API_URL}/cotizaciones` : '/api/cotizaciones', {
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(nueva)
+                    });
+                });
+            });
+        });
+    };
 
     const renderForm = () => (
         <div className="space-y-6 text-left pb-12">
@@ -3662,97 +3762,81 @@ function CotizadorPredisenadoApp() {
                 </button>
             </div>
 
-            {/* Info Institución */}
+            {/* Info Docente y Grados Globales */}
             <div className="bg-white p-6 rounded-xl shadow-md border border-[#F2A900]">
-                <h3 className="text-lg font-bold text-[#172042] mb-4 border-b pb-2">Información de la Institución</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">Nombre Colegio *</label>
-                        <input type="text" value={institution} onChange={e => setInstitution(e.target.value)} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none" placeholder="Nombre de la Institución" />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">Teléfono</label>
-                        <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none" placeholder="Teléfono de contacto" />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">Email <span className="text-gray-400 font-normal">(Opcional)</span></label>
-                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none" placeholder="Correo electrónico" />
-                    </div>
+                <h3 className="text-lg font-bold text-[#172042] mb-4 border-b pb-2">Configuración General</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div><label className="block text-xs font-bold text-gray-700 mb-1">Nombre Docente *</label><input type="text" value={docenteNombre} onChange={e => setDocenteNombre(e.target.value)} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none" /></div>
+                    <div><label className="block text-xs font-bold text-gray-700 mb-1">Número</label><input type="text" value={docenteNumero} onChange={e => setDocenteNumero(e.target.value)} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none" /></div>
+                    <div><label className="block text-xs font-bold text-gray-700 mb-1">Correo</label><input type="email" value={docenteCorreo} onChange={e => setDocenteCorreo(e.target.value)} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none" /></div>
+                    <div><label className="block text-xs font-bold text-gray-700 mb-1">Lead</label><input type="text" value={lead} onChange={e => setLead(e.target.value)} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none" /></div>
                 </div>
 
-                <div className="mt-6">
-                    <label className="block text-xs font-bold text-gray-700 mb-2">Grados a Cotizar *</label>
-                    <div className="flex flex-wrap gap-2">
-                        {GRADOS.map(g => (
-                            <button key={g} onClick={() => handleGradeToggle(g)} className={`px-3 py-1 rounded border text-sm font-bold transition-colors ${selectedGrades.includes(g) ? 'bg-[#172042] text-white border-[#172042]' : 'bg-gray-50 text-gray-600 hover:bg-gray-200'}`}>
-                                {g}
-                            </button>
-                        ))}
+                <div className="mt-6 flex flex-col md:flex-row gap-6">
+                    <div className="flex-1">
+                        <label className="block text-xs font-bold text-[#172042] mb-2">Paso 1: Selecciona los Grados para añadir al carrito *</label>
+                        <div className="flex flex-wrap gap-2">
+                            {GRADOS.map(g => (
+                                <button key={g} onClick={() => handleGradeToggle(g)} className={`px-3 py-1 rounded border text-sm font-bold transition-colors ${selectedGrades.includes(g) ? 'bg-[#172042] text-white border-[#172042]' : 'bg-gray-50 text-gray-600 hover:bg-gray-200'}`}>
+                                    {g}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">Los grados que selecciones aquí se usarán cuando des clic en "Añadir a Cotización" abajo.</p>
+                    </div>
+                    <div className="w-full md:w-48">
+                        <label className="block text-xs font-bold text-gray-700 mb-2">Descuento Final (%)</label>
+                        <input type="number" min="0" max="100" value={descuentoPorcentaje} onChange={e => setDescuentoPorcentaje(Number(e.target.value))} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none font-bold text-[#172042]" />
                     </div>
                 </div>
             </div>
 
             {/* TABS */}
-            <div className="flex bg-white rounded-t-xl shadow-sm border-b overflow-hidden">
-                <button onClick={() => setActiveTab('mallas')} className={`flex-1 py-4 font-bold transition-colors ${activeTab === 'mallas' ? 'border-b-4 border-[#F2A900] text-[#172042] bg-gray-50' : 'text-gray-500 hover:bg-gray-50'}`}>
-                    MALLAS CURRICULARES
-                </button>
-                <button onClick={() => setActiveTab('planes')} className={`flex-1 py-4 font-bold transition-colors ${activeTab === 'planes' ? 'border-b-4 border-blue-500 text-blue-900 bg-blue-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>
-                    PLANES
-                </button>
-                <button onClick={() => setActiveTab('examenes')} className={`flex-1 py-4 font-bold transition-colors ${activeTab === 'examenes' ? 'border-b-4 border-green-500 text-green-900 bg-green-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>
-                    EXÁMENES
-                </button>
+            <h3 className="text-lg font-bold text-[#172042] mt-6">Paso 2: Explora las áreas y añádelas al carrito</h3>
+            <div className="flex bg-white rounded-t-xl shadow-sm border-b overflow-hidden mt-2">
+                <button onClick={() => setActiveTab('mallas')} className={`flex-1 py-4 font-bold transition-colors ${activeTab === 'mallas' ? 'border-b-4 border-[#F2A900] text-[#172042] bg-gray-50' : 'text-gray-500 hover:bg-gray-50'}`}>MALLAS</button>
+                <button onClick={() => setActiveTab('planes')} className={`flex-1 py-4 font-bold transition-colors ${activeTab === 'planes' ? 'border-b-4 border-blue-500 text-blue-900 bg-blue-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>PLANES</button>
+                <button onClick={() => setActiveTab('examenes')} className={`flex-1 py-4 font-bold transition-colors ${activeTab === 'examenes' ? 'border-b-4 border-green-500 text-green-900 bg-green-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>EXÁMENES</button>
             </div>
 
             <div className="bg-white p-6 rounded-b-xl shadow-md border-t-0 border border-gray-200">
                 
-                {/* TAB CONTENIDO: MALLAS */}
                 {activeTab === 'mallas' && (
                     <div>
                         <div className="flex justify-between items-center mb-4 border-b pb-2 border-gray-200">
-                            <h3 className="text-xl font-bold text-[#172042]">Configuración de Mallas</h3>
+                            <h3 className="text-xl font-bold text-[#172042]">Mallas</h3>
                             <div className="flex items-center gap-4">
                                 <label className="text-sm font-bold text-gray-700">Periodos:</label>
                                 <select value={mallasPeriods} onChange={e => setMallasPeriods(Number(e.target.value))} className="border rounded p-1 font-bold">
-                                    <option value={3}>3 Periodos</option>
-                                    <option value={4}>4 Periodos</option>
+                                    <option value={3}>3 Periodos</option><option value={4}>4 Periodos</option>
                                 </select>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-gray-50 p-4 rounded-lg">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">Valor Versión A ($)</label>
-                                <input type="number" value={mallasPrices.A || ''} onChange={e => setMallasPrices({...mallasPrices, A: Number(e.target.value)})} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none font-mono" placeholder="Ej: 50000" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">Valor Versión B ($)</label>
-                                <input type="number" value={mallasPrices.B || ''} onChange={e => setMallasPrices({...mallasPrices, B: Number(e.target.value)})} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none font-mono" placeholder="Ej: 70000" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">Valor Versión Y ($)</label>
-                                <input type="number" value={mallasPrices.Y || ''} onChange={e => setMallasPrices({...mallasPrices, Y: Number(e.target.value)})} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none font-mono" placeholder="Ej: 90000" />
-                            </div>
+                            <div><label className="block text-xs font-bold text-gray-700 mb-1">Valor Global A ($)</label><input type="number" value={mallasPrices.A || ''} onChange={e => setMallasPrices({...mallasPrices, A: Number(e.target.value)})} className="w-full border rounded p-2 outline-none font-mono" /></div>
+                            <div><label className="block text-xs font-bold text-gray-700 mb-1">Valor Global B ($)</label><input type="number" value={mallasPrices.B || ''} onChange={e => setMallasPrices({...mallasPrices, B: Number(e.target.value)})} className="w-full border rounded p-2 outline-none font-mono" /></div>
+                            <div><label className="block text-xs font-bold text-gray-700 mb-1">Valor Global Y ($)</label><input type="number" value={mallasPrices.Y || ''} onChange={e => setMallasPrices({...mallasPrices, Y: Number(e.target.value)})} className="w-full border rounded p-2 outline-none font-mono" /></div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                        <div className="grid grid-cols-3 gap-3 mb-6">
                             {allAreas.map(area => {
-                                const active = mallasSelections[area]?.active || false;
-                                const version = mallasSelections[area]?.version || 'A';
+                                const exp = mallasConfig[area]?.expanded || false;
+                                const version = mallasConfig[area]?.version || 'A';
                                 return (
-                                    <div key={`m_${area}`} className={`border rounded p-3 transition-colors ${active ? 'border-[#F2A900] bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <input type="checkbox" checked={active} onChange={() => handleMallasToggle(area)} className="w-4 h-4 text-[#F2A900] focus:ring-[#F2A900]" />
-                                            <span className={`text-sm font-bold ${active ? 'text-[#172042]' : 'text-gray-500'}`}>{area}</span>
+                                    <div key={`m_${area}`} className={`border rounded p-3 transition-colors ${exp ? 'border-[#F2A900] bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                                        <div className="flex items-center gap-2 mb-2 cursor-pointer" onClick={() => toggleMallasConfig(area)}>
+                                            <span className="text-gray-400">{exp ? '▼' : '▶'}</span>
+                                            <span className={`text-sm font-bold ${exp ? 'text-[#172042]' : 'text-gray-600'}`}>{area}</span>
                                         </div>
-                                        {active && (
-                                            <div className="pl-6 flex gap-2">
-                                                {['A', 'B', 'Y'].map(v => (
-                                                    <button key={v} onClick={() => handleMallasVersion(area, v)} className={`px-2 py-0.5 text-xs font-bold rounded ${version === v ? 'bg-[#172042] text-white' : 'bg-white border text-gray-500 hover:bg-gray-100'}`}>
-                                                        Ver {v}
-                                                    </button>
-                                                ))}
+                                        {exp && (
+                                            <div className="pl-6 flex flex-col gap-3">
+                                                <div className="flex gap-2">
+                                                    {['A', 'B', 'Y'].map(v => (
+                                                        <button key={v} onClick={() => setMallasVersion(area, v)} className={`px-2 py-0.5 text-xs font-bold rounded ${version === v ? 'bg-[#172042] text-white' : 'bg-white border text-gray-500 hover:bg-gray-100'}`}>Ver {v}</button>
+                                                    ))}
+                                                </div>
+                                                <button onClick={() => addToCartMallas(area)} className="bg-black hover:bg-gray-800 text-white text-xs py-2 rounded font-bold transition-colors w-full">+ Añadir a Cotización</button>
                                             </div>
                                         )}
                                     </div>
@@ -3762,52 +3846,52 @@ function CotizadorPredisenadoApp() {
                     </div>
                 )}
 
-                {/* TAB CONTENIDO: PLANES */}
                 {activeTab === 'planes' && (
                     <div>
                         <div className="flex justify-between items-center mb-4 border-b pb-2 border-gray-200">
-                            <h3 className="text-xl font-bold text-blue-900">Configuración de Planes</h3>
+                            <h3 className="text-xl font-bold text-blue-900">Planes</h3>
                             <div className="flex items-center gap-4">
                                 <label className="text-sm font-bold text-gray-700">Periodos:</label>
                                 <select value={planesPeriods} onChange={e => setPlanesPeriods(Number(e.target.value))} className="border rounded p-1 font-bold">
-                                    <option value={3}>3 Periodos</option>
-                                    <option value={4}>4 Periodos</option>
+                                    <option value={3}>3 Periodos</option><option value={4}>4 Periodos</option>
                                 </select>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-blue-50 p-4 rounded-lg">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">Valor Versión A ($)</label>
-                                <input type="number" value={planesPrices.A || ''} onChange={e => setPlanesPrices({...planesPrices, A: Number(e.target.value)})} className="w-full border rounded p-2 focus:ring-blue-500 outline-none font-mono" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">Valor Versión B ($)</label>
-                                <input type="number" value={planesPrices.B || ''} onChange={e => setPlanesPrices({...planesPrices, B: Number(e.target.value)})} className="w-full border rounded p-2 focus:ring-blue-500 outline-none font-mono" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">Valor Versión Y ($)</label>
-                                <input type="number" value={planesPrices.Y || ''} onChange={e => setPlanesPrices({...planesPrices, Y: Number(e.target.value)})} className="w-full border rounded p-2 focus:ring-blue-500 outline-none font-mono" />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                        <div className="grid grid-cols-3 gap-3 mb-6">
                             {allAreas.map(area => {
-                                const active = planesSelections[area]?.active || false;
-                                const version = planesSelections[area]?.version || 'A';
+                                const exp = planesConfig[area]?.expanded || false;
+                                const version = planesConfig[area]?.version || 'A';
+                                const currentPrice = getPlanePrice(area, version, planesPeriods);
+                                const isEditingThis = editingPlane?.area === area && editingPlane?.version === version && editingPlane?.periods === planesPeriods;
+
                                 return (
-                                    <div key={`p_${area}`} className={`border rounded p-3 transition-colors ${active ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <input type="checkbox" checked={active} onChange={() => handlePlanesToggle(area)} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
-                                            <span className={`text-sm font-bold ${active ? 'text-blue-900' : 'text-gray-500'}`}>{area}</span>
+                                    <div key={`p_${area}`} className={`border rounded p-3 transition-colors ${exp ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                                        <div className="flex items-center gap-2 mb-2 cursor-pointer" onClick={() => togglePlanesConfig(area)}>
+                                            <span className="text-blue-400">{exp ? '▼' : '▶'}</span>
+                                            <span className={`text-sm font-bold ${exp ? 'text-blue-900' : 'text-gray-600'}`}>{area}</span>
                                         </div>
-                                        {active && (
-                                            <div className="pl-6 flex gap-2">
-                                                {['A', 'B', 'Y'].map(v => (
-                                                    <button key={v} onClick={() => handlePlanesVersion(area, v)} className={`px-2 py-0.5 text-xs font-bold rounded ${version === v ? 'bg-blue-900 text-white' : 'bg-white border text-gray-500 hover:bg-gray-100'}`}>
-                                                        Ver {v}
-                                                    </button>
-                                                ))}
+                                        {exp && (
+                                            <div className="pl-6 flex flex-col gap-3">
+                                                <div className="flex gap-2">
+                                                    {['A', 'B', 'Y'].map(v => (
+                                                        <button key={v} onClick={() => setPlanesVersion(area, v)} className={`px-2 py-0.5 text-xs font-bold rounded ${version === v ? 'bg-blue-900 text-white' : 'bg-white border text-gray-500 hover:bg-gray-100'}`}>Ver {v}</button>
+                                                    ))}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {isEditingThis ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <input type="number" value={tempPlanePrice} onChange={e => setTempPlanePrice(e.target.value)} className="w-20 border rounded p-1 text-xs" />
+                                                            <button onClick={() => savePlanePrice(area, version, planesPeriods)} className="bg-green-600 text-white px-2 rounded text-xs py-1">Guardar</button>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <span className="text-xs font-bold text-blue-900 bg-blue-100 px-2 py-1 rounded">$ {currentPrice.toLocaleString()}</span>
+                                                            {isAdmin && <button onClick={() => { setTempPlanePrice(currentPrice); setEditingPlane({ area, version, periods: planesPeriods }); }} className="text-gray-500 hover:text-black cursor-pointer bg-gray-200 rounded p-1" title="Editar valor global">✏️</button>}
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <button onClick={() => addToCartPlanes(area)} className="bg-blue-900 hover:bg-blue-800 text-white text-xs py-2 rounded font-bold transition-colors w-full">+ Añadir a Cotización</button>
                                             </div>
                                         )}
                                     </div>
@@ -3817,110 +3901,197 @@ function CotizadorPredisenadoApp() {
                     </div>
                 )}
 
-                {/* TAB CONTENIDO: EXÁMENES */}
                 {activeTab === 'examenes' && (
                     <div>
-                        <h3 className="text-xl font-bold text-green-900 mb-4 border-b pb-2 border-gray-200">Exámenes por Competencias</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-                            {DEFAULT_EXAMENES.map(ex => {
-                                const active = examenes[ex].active;
-                                return (
-                                    <div key={`ex_${ex}`} className={`border rounded p-3 transition-colors ${active ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <input type="checkbox" checked={active} onChange={() => handleExamenToggle(ex)} className="w-4 h-4 text-green-600 focus:ring-green-500" />
-                                            <span className={`text-sm font-bold ${active ? 'text-green-900' : 'text-gray-500'}`}>{ex}</span>
-                                        </div>
-                                        {active && (
-                                            <div className="pl-6">
-                                                <label className="text-xs text-gray-500 block mb-1">Valor por Examen ($)</label>
-                                                <input type="number" value={examenes[ex].price || ''} onChange={e => handleExamenPrice(ex, e.target.value)} className="w-full border rounded p-1 text-sm outline-none focus:ring-green-500 font-mono" />
-                                            </div>
-                                        )}
+                        <div className="flex justify-between items-center mb-4 border-b pb-2 border-gray-200">
+                            <h3 className="text-xl font-bold text-green-900">Exámenes</h3>
+                            <div className="flex items-center gap-4 bg-green-50 p-2 rounded border border-green-200">
+                                <label className="text-sm font-bold text-green-900">Valor global por examen ($):</label>
+                                {isAdmin ? (
+                                    <input type="number" value={settings.globalExamenPrice || ''} onChange={e => handleGlobalExamenPrice(e.target.value)} className="border rounded p-1 text-sm outline-none w-28" />
+                                ) : (
+                                    <span className="font-bold text-green-900">$ {settings.globalExamenPrice?.toLocaleString()}</span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                            {DEFAULT_EXAMENES.map(ex => (
+                                <div key={`ex_${ex}`} className="border rounded p-3 border-gray-200 hover:border-gray-300">
+                                    <div className="flex justify-between items-center gap-2">
+                                        <span className="text-sm font-bold text-gray-700">{ex}</span>
+                                        <button onClick={() => addToCartExamenes(ex)} className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-3 rounded font-bold transition-colors">+ Añadir</button>
                                     </div>
-                                )
-                            })}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
 
-                {/* Agregar Área Personalizada compartida por Mallas y Planes */}
                 {(activeTab === 'mallas' || activeTab === 'planes') && (
                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col md:flex-row items-end gap-4 mt-6">
                         <div className="flex-1 w-full">
-                            <label className="block text-xs font-bold text-gray-700 mb-1">Añadir nueva área a las listas</label>
-                            <input type="text" value={newAreaName} onChange={e => setNewAreaName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCustomArea()} placeholder="Nombre de la nueva área..." className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none" />
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Añadir nueva área a la lista de {activeTab}</label>
+                            <input type="text" value={newAreaName} onChange={e => setNewAreaName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCustomArea()} placeholder="Nombre de la nueva área..." className="w-full border rounded p-2 outline-none" />
                         </div>
-                        <button onClick={addCustomArea} className="w-full md:w-auto bg-gray-800 hover:bg-black text-white px-6 py-2 rounded font-bold transition-colors">Añadir Área</button>
+                        <button onClick={addCustomArea} className="w-full md:w-auto bg-gray-800 hover:bg-black text-white px-6 py-2 rounded font-bold">Crear Área</button>
                     </div>
                 )}
             </div>
 
-            {/* Generar Botón */}
-            <div className="flex justify-end gap-4 mt-8 pt-4">
-                <button onClick={() => setStep('quote')} disabled={!institution || selectedGrades.length === 0} className="bg-[#172042] hover:bg-[#22305c] text-white font-bold py-3 px-8 rounded-lg shadow-lg disabled:opacity-50 transition-colors text-lg">
-                    Generar Resumen de Cotización
-                </button>
+            {/* CARRITO Y RESUMEN */}
+            <div className="bg-[#172042] text-white p-6 rounded-xl shadow-lg mt-6">
+                <h3 className="text-xl font-bold mb-4">Carrito de Cotización ({cart.length} ítems añadidos)</h3>
+                {cart.length === 0 ? (
+                    <p className="text-gray-400 text-sm">Aún no has añadido ninguna área. Selecciona los grados arriba y haz clic en "+ Añadir a Cotización" en las áreas que desees.</p>
+                ) : (
+                    <div className="space-y-2 mb-6 max-h-64 overflow-y-auto pr-2">
+                        {cart.map(item => (
+                            <div key={item.id} className="flex justify-between items-center border border-gray-600 p-3 rounded bg-gray-800">
+                                <div>
+                                    <span className="font-bold uppercase text-xs px-2 py-1 rounded mr-2 bg-gray-700">{item.category}</span>
+                                    <span className="font-bold text-yellow-400">{item.area}</span>
+                                    <span className="text-xs text-gray-300 ml-2">Grados: {item.grades.join(', ')}</span>
+                                    {item.category !== 'examenes' && <span className="text-xs text-gray-300 ml-2">Ver {item.version} | {item.periods} Per.</span>}
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <span className="font-bold text-green-400">$ {item.total.toLocaleString()}</span>
+                                    <button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-300 font-bold bg-red-900/50 px-2 py-1 rounded">X</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                
+                <div className="flex justify-between items-center border-t border-gray-600 pt-4">
+                    <div className="text-xl font-bold text-yellow-400">
+                        Total General: $ {finalTotal.toLocaleString()} COP
+                    </div>
+                    <button onClick={() => setStep('quote')} disabled={!docenteNombre || cart.length === 0} className="bg-[#F2A900] hover:bg-yellow-500 text-[#172042] font-black py-3 px-8 rounded-lg shadow-lg disabled:opacity-50 transition-colors">
+                        GENERAR PDF FINAL →
+                    </button>
+                </div>
             </div>
         </div>
     );
 
+    const mallasCart = cart.filter(i => i.category === 'mallas');
+    const planesCart = cart.filter(i => i.category === 'planes');
+    const examenesCart = cart.filter(i => i.category === 'examenes');
+
     const renderQuote = () => (
-        <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200 text-left max-w-4xl mx-auto mt-8">
-            <div className="flex justify-between items-center mb-8 border-b pb-4">
-                <div>
-                    <h2 className="text-3xl font-black text-[#172042]">Cotización Prediseñada</h2>
-                    <p className="text-gray-500 mt-1">Institución: <span className="font-bold text-[#172042]">{institution}</span></p>
-                    <p className="text-gray-500">Grados: <span className="font-bold text-[#172042]">{selectedGrades.join(', ')}</span> ({selectedGrades.length})</p>
-                </div>
-                <div className="text-right">
-                    <p className="text-sm text-gray-500">Fecha: {new Date().toLocaleDateString()}</p>
-                    <p className="text-sm text-gray-500">Asesor: <span className="font-bold text-[#172042]">{window.appData?.currentUser || 'Asesor'}</span></p>
-                </div>
+        <div className="relative mt-12 mb-24 max-w-[210mm] mx-auto">
+            
+            <div id="quote-controls" className="absolute -top-12 right-0 flex gap-2 print:hidden z-10">
+                <button onClick={() => setStep('form')} className="bg-gray-800 text-white hover:bg-black px-4 py-2 rounded text-sm font-bold shadow transition-all">Volver a Editar</button>
+                <button onClick={handleCopyImage} className="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded text-sm font-bold shadow transition-all flex items-center gap-2">Copiar Imagen</button>
+                <button onClick={() => window.print()} className="bg-[#F2A900] text-[#172042] hover:bg-yellow-500 px-4 py-2 rounded text-sm font-bold shadow transition-all flex items-center gap-2">Imprimir / PDF</button>
             </div>
 
-            {mallasTotal > 0 && (
-                <div className="mb-6">
-                    <h3 className="text-lg font-bold text-gray-800 bg-gray-100 p-2 rounded mb-2">Mallas Curriculares ({mallasPeriods} Periodos)</h3>
-                    <ul className="list-disc pl-5 text-sm text-gray-600 mb-2">
-                        {Object.keys(mallasSelections).filter(a => mallasSelections[a].active).map(a => (
-                            <li key={a}>{a} - Versión {mallasSelections[a].version} ($ {(mallasPrices[mallasSelections[a].version] || 0).toLocaleString()} x {mallasPeriods} per = $ {((mallasPrices[mallasSelections[a].version] || 0) * mallasPeriods).toLocaleString()})</li>
-                        ))}
-                    </ul>
-                    <p className="text-right font-bold text-[#172042]">Subtotal Mallas: $ {mallasTotal.toLocaleString()}</p>
-                </div>
-            )}
+            <div id="cotizacion-pdf-content" className="w-full bg-white shadow-xl print:shadow-none pdf-container print:block print:min-h-0 flex flex-col">
+                <div className="screen-header w-full"><img src="https://i.imgur.com/JEWA3nS.png" className="w-full h-auto block" /></div>
+                
+                <table className="w-full flex-grow h-full" style={{ display: 'table' }}>
+                    <thead className="print:table-header-group hidden"><tr><td><div className="h-[120px]"></div></td></tr></thead>
+                    <tbody>
+                        <tr><td className="px-10 py-6 align-top text-left text-sm">
+                            
+                            <div className="flex justify-between text-xs mb-8 text-[#172042]">
+                                <div>
+                                    <p><strong>DIRIGIDO A:</strong> {docenteNombre}</p>
+                                    {docenteNumero && <p><strong>Celular:</strong> {docenteNumero}</p>}
+                                    {docenteCorreo && <p><strong>Correo:</strong> {docenteCorreo}</p>}
+                                    {lead && <p><strong>Lead:</strong> {lead}</p>}
+                                </div>
+                                <div className="text-right">
+                                    <p><strong>COTIZADO POR:</strong> Hamilton Colombia® SAS</p>
+                                    <p><strong>Fecha:</strong> {new Date().toLocaleDateString()}</p>
+                                </div>
+                            </div>
 
-            {planesTotal > 0 && (
-                <div className="mb-6">
-                    <h3 className="text-lg font-bold text-gray-800 bg-gray-100 p-2 rounded mb-2">Planes ({planesPeriods} Periodos)</h3>
-                    <ul className="list-disc pl-5 text-sm text-gray-600 mb-2">
-                        {Object.keys(planesSelections).filter(a => planesSelections[a].active).map(a => (
-                            <li key={a}>{a} - Versión {planesSelections[a].version} ($ {(planesPrices[planesSelections[a].version] || 0).toLocaleString()} x {planesPeriods} per = $ {((planesPrices[planesSelections[a].version] || 0) * planesPeriods).toLocaleString()})</li>
-                        ))}
-                    </ul>
-                    <p className="text-right font-bold text-[#172042]">Subtotal Planes: $ {planesTotal.toLocaleString()}</p>
-                </div>
-            )}
+                            {/* MALLAS */}
+                            {mallasCart.length > 0 && (
+                                <div className="mb-8">
+                                    <h3 className="font-bold text-[#172042] mb-2 text-center uppercase">MALLAS CURRICULARES</h3>
+                                    <table className="w-full border-collapse border border-[#172042] text-xs text-center">
+                                        <thead><tr className="bg-[#172042] text-white font-bold"><th className="border p-1">GRADOS</th><th className="border p-1">ÁREA</th><th className="border p-1">PERIODO(S)</th><th className="border p-1">VALOR</th></tr></thead>
+                                        <tbody>
+                                            {mallasCart.map(item => (
+                                                <tr key={item.id}>
+                                                    <td className="border border-gray-300 p-1">{item.grades.join(', ')}</td>
+                                                    <td className="border border-gray-300 p-1">{item.area}</td>
+                                                    <td className="border border-gray-300 p-1">{item.periods}</td>
+                                                    <td className="border border-gray-300 p-1 font-bold">$ {item.total.toLocaleString()}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
 
-            {examenesTotal > 0 && (
-                <div className="mb-6">
-                    <h3 className="text-lg font-bold text-gray-800 bg-gray-100 p-2 rounded mb-2">Exámenes por Competencias ({selectedGrades.length} Grados)</h3>
-                    <ul className="list-disc pl-5 text-sm text-gray-600 mb-2">
-                        {Object.keys(examenes).filter(a => examenes[a].active).map(a => (
-                            <li key={a}>{a} ($ {(examenes[a].price || 0).toLocaleString()} x {selectedGrades.length} = $ {((examenes[a].price || 0) * selectedGrades.length).toLocaleString()})</li>
-                        ))}
-                    </ul>
-                    <p className="text-right font-bold text-[#172042]">Subtotal Exámenes: $ {examenesTotal.toLocaleString()}</p>
-                </div>
-            )}
+                            {/* PLANES */}
+                            {planesCart.length > 0 && (
+                                <div className="mb-8">
+                                    <h3 className="font-bold text-[#172042] mb-2 text-center uppercase">PLANES</h3>
+                                    <table className="w-full border-collapse border border-[#172042] text-xs text-center">
+                                        <thead><tr className="bg-[#172042] text-white font-bold"><th className="border p-1">GRADOS</th><th className="border p-1">ÁREA</th><th className="border p-1">PERIODO(S)</th><th className="border p-1">TOTAL ÁREA</th></tr></thead>
+                                        <tbody>
+                                            {planesCart.map(item => (
+                                                <tr key={item.id}>
+                                                    <td className="border border-gray-300 p-1">{item.grades.join(', ')}</td>
+                                                    <td className="border border-gray-300 p-1">{item.area}</td>
+                                                    <td className="border border-gray-300 p-1">{item.periods}</td>
+                                                    <td className="border border-gray-300 p-1 font-bold">$ {item.total.toLocaleString()}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
 
-            <div className="border-t-4 border-[#F2A900] pt-4 mt-8">
-                <p className="text-3xl font-black text-right text-[#172042]">TOTAL: $ {grandTotal.toLocaleString()}</p>
-            </div>
+                            {/* EXAMENES */}
+                            {examenesCart.length > 0 && (
+                                <div className="mb-8">
+                                    <h3 className="font-bold text-[#172042] mb-2 text-center uppercase">EXÁMENES POR COMPETENCIAS</h3>
+                                    <table className="w-full border-collapse border border-[#172042] text-xs text-center">
+                                        <thead><tr className="bg-[#172042] text-white font-bold"><th className="border p-1">GRADOS</th><th className="border p-1">ÁREA</th><th className="border p-1">CANT. GRADOS</th><th className="border p-1">VALOR EXÁMEN</th><th className="border p-1">TOTAL ÁREA</th></tr></thead>
+                                        <tbody>
+                                            {examenesCart.map(item => (
+                                                <tr key={item.id}>
+                                                    <td className="border border-gray-300 p-1">{item.grades.join(', ')}</td>
+                                                    <td className="border border-gray-300 p-1">{item.area}</td>
+                                                    <td className="border border-gray-300 p-1">{item.examenesCount}</td>
+                                                    <td className="border border-gray-300 p-1">$ {item.price.toLocaleString()}</td>
+                                                    <td className="border border-gray-300 p-1 font-bold">$ {item.total.toLocaleString()}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
 
-            <div className="flex justify-end gap-4 mt-8 print:hidden">
-                <button onClick={() => setStep('form')} className="border border-gray-400 text-gray-600 hover:bg-gray-100 px-6 py-2 rounded font-bold transition-colors">Volver a Editar</button>
-                <button onClick={() => window.print()} className="bg-[#172042] text-white hover:bg-[#22305c] px-6 py-2 rounded font-bold transition-colors shadow">Imprimir / PDF</button>
+                            {/* TOTALES */}
+                            {descuentoPorcentaje > 0 && (
+                                <div className="mt-6 border border-[#172042] p-2 flex justify-between font-bold bg-gray-50">
+                                    <span>SUBTOTAL (Sin Descuento):</span><span>$ {subtotal.toLocaleString()} COP.</span>
+                                </div>
+                            )}
+                            {descuentoPorcentaje > 0 && (
+                                <div className="border-x border-b border-[#172042] p-2 flex justify-between font-bold bg-red-50 text-red-600">
+                                    <span>DESCUENTO ({descuentoPorcentaje}%):</span><span>- $ {desc.toLocaleString()} COP.</span>
+                                </div>
+                            )}
+                            <div className={`border-2 border-[#172042] p-4 flex justify-between font-bold ${descuentoPorcentaje > 0 ? 'bg-green-100 mt-0 border-t-0' : 'bg-gray-50 mt-8'}`}>
+                                <span className="text-xl">TOTAL GENERAL:</span>
+                                <span className="text-xl">$ {finalTotal.toLocaleString()} COP.</span>
+                            </div>
+
+                        </td></tr>
+                    </tbody>
+                    <tfoot className="print:table-footer-group hidden"><tr><td><div className="h-[80px]"></div></td></tr></tfoot>
+                </table>
+
+                <div className="screen-footer w-full mt-auto"><img src="https://i.imgur.com/FJC5Jvc.png" className="w-full h-auto block" /></div>
             </div>
         </div>
     );
@@ -3933,6 +4104,12 @@ function CotizadorPredisenadoApp() {
 }
 
 ReactDOM.createRoot(document.getElementById('cotizador-predisenado-root')).render(<CotizadorPredisenadoApp />);
+
+
+
+
+
+
 
 
 
