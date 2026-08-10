@@ -47,15 +47,18 @@
             -moz-appearance: textfield;
         }
 
-        /* MODO OSCURO - SLATE ELEGANTE */
+        /* MODO OSCURO - AZUL GALÁCTICO INTERACTIVO */
         :root {
-            --bg-galaxy: #0f172a;
-            --bg-panel: #1e293b;
-            --bg-hover: #334155;
-            --text-main: #f1f5f9;
-            --text-muted: #94a3b8;
-            --border-dark: #334155;
-            --mustard-dark: #d97706;
+            --bg-galaxy: #020617; /* Slate 950, deepest blue */
+            --bg-panel: #0f172a;  /* Slate 900 */
+            --bg-hover: #1e293b;  /* Slate 800 */
+            --text-main: #f8fafc; /* Slate 50 */
+            --text-muted: #94a3b8; /* Slate 400 */
+            --border-dark: #1e293b; /* Slate 800 */
+            --mustard-dark: #f59e0b;
+            /* interactive blues */
+            --accent-blue: #38bdf8;
+            --accent-blue-hover: #0ea5e9;
         }
 
         html.dark-mode body {
@@ -67,10 +70,14 @@
             background-color: var(--bg-panel) !important;
             border-color: var(--border-dark) !important;
             color: var(--text-main) !important;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4) !important;
         }
 
         html.dark-mode .bg-gray-50,
         html.dark-mode .bg-gray-100,
+        html.dark-mode .bg-blue-50,
+        html.dark-mode .bg-green-50,
+        html.dark-mode .bg-yellow-50,
         html.dark-mode .bg-\[\#f0f2f5\] {
             background-color: var(--bg-galaxy) !important;
             color: var(--text-main) !important;
@@ -97,15 +104,22 @@
 
         html.dark-mode input::placeholder,
         html.dark-mode textarea::placeholder {
-            color: #64748b !important;
+            color: #475569 !important;
         }
 
         html.dark-mode .text-\[\#172042\]:not(.pdf-container *) {
-            color: #e2e8f0 !important;
+            color: var(--accent-blue) !important;
         }
 
         html.dark-mode .bg-\[\#172042\]:not(.pdf-container *) {
-            background-color: #0f172a !important;
+            background-color: var(--accent-blue) !important;
+            color: #020617 !important;
+            border-color: var(--accent-blue) !important;
+        }
+        
+        html.dark-mode .bg-\[\#172042\]:hover:not(.pdf-container *) {
+            background-color: var(--accent-blue-hover) !important;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4) !important;
         }
 
         html.dark-mode border {
@@ -120,7 +134,7 @@
 
         html.dark-mode thead:not(.pdf-container *),
         html.dark-mode .bg-gray-200:not(.pdf-container *) {
-            background-color: #1e293b !important;
+            background-color: var(--bg-hover) !important;
             color: var(--text-main) !important;
         }
 
