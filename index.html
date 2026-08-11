@@ -776,6 +776,28 @@
             document.getElementById('modal-eliminar-area').classList.remove('hidden');
         };
 
+        
+        window.toggleGradeState = function(areaStr, version, gradeStr) {
+            if(!window.isEditingAdminPrices) return;
+            const inputEl = document.getElementById(`plane-${areaStr}-${version}-${gradeStr}`);
+            const naEl = document.getElementById(`na-plane-${areaStr}-${version}-${gradeStr}`);
+            if(!inputEl || !naEl) return;
+            
+            if(inputEl.classList.contains('hidden')) {
+                inputEl.classList.remove('hidden');
+                inputEl.classList.add('block');
+                naEl.classList.remove('flex');
+                naEl.classList.add('hidden');
+            } else {
+                inputEl.classList.remove('block');
+                inputEl.classList.add('hidden');
+                naEl.classList.remove('hidden');
+                naEl.classList.add('flex');
+                inputEl.value = '';
+            }
+            if(window.renderizarYMantenerEdicion) window.hasAdminChanges = true;
+        };
+
         window.eliminarAreaAdmin = function(areaStr, version) {
             window.guardarPreciosAdmin(true);
             if(window.adminSettings.areasPorSeccion && window.adminSettings.areasPorSeccion[version]) {
@@ -809,7 +831,13 @@
                     if(!window.adminSettings.planesPrices[area][ver]) window.adminSettings.planesPrices[area][ver] = {};
                     pri_grades.forEach(g => {
                         const el = document.getElementById(`plane-${area}-${ver}-${g}`);
-                        if(el) window.adminSettings.planesPrices[area][ver][g] = Number(el.value) || 0;
+                        if(el) {
+                            if (el.classList.contains('hidden')) {
+                                window.adminSettings.planesPrices[area][ver][g] = -1;
+                            } else {
+                                window.adminSettings.planesPrices[area][ver][g] = Number(el.value) || 0;
+                            }
+                        }
                     });
                 });
             });
@@ -821,7 +849,13 @@
                     if(!window.adminSettings.planesPrices[area][ver]) window.adminSettings.planesPrices[area][ver] = {};
                     sec_grades.forEach(g => {
                         const el = document.getElementById(`plane-${area}-${ver}-${g}`);
-                        if(el) window.adminSettings.planesPrices[area][ver][g] = Number(el.value) || 0;
+                        if(el) {
+                            if (el.classList.contains('hidden')) {
+                                window.adminSettings.planesPrices[area][ver][g] = -1;
+                            } else {
+                                window.adminSettings.planesPrices[area][ver][g] = Number(el.value) || 0;
+                            }
+                        }
                     });
                 });
             });
@@ -874,7 +908,7 @@
                         };
                     }
                     window.adminSettings = data;
-                    if (typeof window.renderizarDashboard === 'function' && window.activeTab === 'precios') {
+                    if (typeof window.renderizarDashboard === 'function' && window.appData?.activeAdminTab === 'precios') {
                         window.renderizarDashboard();
                     }
                 })
@@ -1553,8 +1587,19 @@
                                         </button>
                                     </td>`;
                             gradesArray.forEach(g => {
-                                const val = (planesPrices[area] && planesPrices[area][version] && planesPrices[area][version][g]) || '';
-                                t += `<td class="p-2 text-center"><input type="number" id="plane-${area}-${version}-${g}" value="${val}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed border border-gray-300 p-2 w-full max-w-[100px] rounded focus:ring-2 focus:ring-[#F2A900] outline-none font-mono text-center" placeholder="0" disabled /></td>`;
+                                let val = '';
+                                if (planesPrices[area] && planesPrices[area][version] && planesPrices[area][version][g] !== undefined) {
+                                    val = planesPrices[area][version][g];
+                                }
+                                const isNA = val === -1;
+                                const displayVal = isNA ? '' : val;
+                                t += `<td class="p-2 text-center relative">
+                                    <div class="flex items-center justify-center gap-1 relative w-full max-w-[100px] mx-auto">
+                                        <input type="number" id="plane-${area}-${version}-${g}" value="${displayVal}" class="admin-price-input ${isNA ? 'hidden' : 'block'} bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed border border-gray-300 p-2 w-full rounded focus:ring-2 focus:ring-[#F2A900] outline-none font-mono text-center" placeholder="0" disabled />
+                                        <div id="na-plane-${area}-${version}-${g}" class="${isNA ? 'flex' : 'hidden'} items-center justify-center bg-gray-200 text-gray-500 font-bold w-full h-[42px] rounded text-sm cursor-not-allowed border border-gray-300">N/A</div>
+                                        <button onclick="window.toggleGradeState('${area}', '${version}', '${g}')" class="admin-price-input absolute -right-6 disabled:opacity-0 disabled:pointer-events-none text-gray-400 hover:text-red-500 transition-colors p-1" title="Habilitar/Deshabilitar grado" disabled>🚫</button>
+                                    </div>
+                                </td>`;
                             });
                             t += `</tr>`;
                         });
@@ -4019,18 +4064,23 @@ function CotizadorPredisenadoApp() {
     const addToCartPlanes = (area) => {
         if (selectedGrades.length === 0) return alert("Selecciona al menos un grado arriba.");
         const version = planesConfig[area]?.version || 'A';
+        const validGrades = selectedGrades.filter(g => settings.planesPrices?.[area]?.[version]?.[g] !== -1);
+        if (validGrades.length === 0) {
+            return window.mostrarToast ? window.mostrarToast(`El área ${area} no está disponible para los grados seleccionados.`, "error") : alert(`El área ${area} no está disponible para los grados seleccionados.`);
+        }
+        
         const totalVal = getPlanePrice(area, version, planesPeriods);
         setCart([...cart, {
             id: Date.now() + Math.random(),
             category: 'planes',
             area,
-            grades: [...selectedGrades],
+            grades: [...validGrades],
             version,
             periods: planesPeriods,
             price: totalVal, 
             total: totalVal
         }]);
-        window.mostrarToast && window.mostrarToast(`Añadido: ${area} (Planes)`);
+        window.mostrarToast && window.mostrarToast(`Añadido: ${area} (Planes) para ${validGrades.join(', ')}`);
     };
 
     const addToCartExamenes = (area) => {
