@@ -650,64 +650,172 @@
 
     <script>
         const API_URL = 'https://cotizador-ihj3.onrender.com/api';
-        
+        window.appData = { quotes: [], usuarios: [], currentUser: null, isAdminGlobal: false, activeAdminTab: 'general' };
         window.isEditingAdminPrices = false;
         window.API_URL = 'https://cotizador-ihj3.onrender.com/api';
         
+        window.hasAdminChanges = false;
+        
+        window.markAdminChanges = function() {
+            if(!window.isEditingAdminPrices || window.hasAdminChanges) return;
+            window.hasAdminChanges = true;
+            const btnEdit = document.getElementById('btn-admin-edit');
+            if(btnEdit) {
+                btnEdit.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Cambios`;
+                btnEdit.classList.remove('bg-red-100', 'text-red-700', 'border-red-200');
+                btnEdit.classList.add('bg-green-100', 'text-green-700', 'border-green-300', 'border');
+            }
+        };
+
+        window.renderizarYMantenerEdicion = function() {
+            const wasEditing = window.isEditingAdminPrices;
+            const hadChanges = window.hasAdminChanges;
+            window.renderizarDashboard();
+            if (wasEditing) {
+                window.isEditingAdminPrices = false; // toggle will flip it to true
+                window.hasAdminChanges = hadChanges;
+                
+                const inputs = document.querySelectorAll('.admin-price-input');
+                inputs.forEach(input => {
+                    input.disabled = false;
+                    input.classList.remove('bg-gray-100');
+                    input.classList.add('bg-white');
+                    input.addEventListener('input', window.markAdminChanges);
+                });
+                
+                window.isEditingAdminPrices = true;
+                
+                const btnSave = document.getElementById('btn-admin-save');
+                if(btnSave) {
+                    btnSave.disabled = false;
+                    btnSave.className = "w-full bg-[#172042] hover:bg-[#22305c] text-[#F2A900] font-bold py-4 rounded-xl shadow transition-colors text-lg flex justify-center items-center gap-2 border border-[#F2A900]";
+                }
+                const btnEdit = document.getElementById('btn-admin-edit');
+                if(btnEdit) {
+                    if (hadChanges) {
+                        btnEdit.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Cambios`;
+                        btnEdit.className = "bg-green-100 text-green-700 border border-green-300 font-bold py-2 px-4 rounded shadow-sm transition-colors flex items-center gap-2";
+                    } else {
+                        btnEdit.innerHTML = "Cancelar Edición";
+                        btnEdit.className = "bg-red-100 hover:bg-red-200 text-red-700 border border-red-200 font-bold py-2 px-4 rounded shadow-sm transition-colors flex items-center gap-2";
+                    }
+                }
+            }
+        };
+
         window.toggleAdminEdit = function() {
-            window.isEditingAdminPrices = !window.isEditingAdminPrices;
+            if (window.isEditingAdminPrices && window.hasAdminChanges) {
+                window.guardarPreciosAdmin();
+                return;
+            }
+            if (window.isEditingAdminPrices && !window.hasAdminChanges) {
+                window.isEditingAdminPrices = false;
+                window.renderizarDashboard();
+                return;
+            }
+
+            window.isEditingAdminPrices = true;
+            window.hasAdminChanges = false;
+            
             const inputs = document.querySelectorAll('.admin-price-input');
             const btnSave = document.getElementById('btn-admin-save');
             const btnEdit = document.getElementById('btn-admin-edit');
             
             inputs.forEach(input => {
-                input.disabled = !window.isEditingAdminPrices;
-                if(window.isEditingAdminPrices) {
-                    input.classList.remove('bg-gray-100');
-                    input.classList.add('bg-white');
-                } else {
-                    input.classList.add('bg-gray-100');
-                    input.classList.remove('bg-white');
-                }
+                input.disabled = false;
+                input.classList.remove('bg-gray-100');
+                input.classList.add('bg-white');
+                input.addEventListener('input', window.markAdminChanges);
             });
             
-            if(window.isEditingAdminPrices) {
+            if(btnSave) {
                 btnSave.disabled = false;
                 btnSave.className = "w-full bg-[#172042] hover:bg-[#22305c] text-[#F2A900] font-bold py-4 rounded-xl shadow transition-colors text-lg flex justify-center items-center gap-2 border border-[#F2A900]";
+            }
+            if(btnEdit) {
                 btnEdit.innerHTML = "Cancelar Edición";
-                btnEdit.classList.add('bg-red-100', 'text-red-700', 'border-red-200');
-                btnEdit.classList.remove('bg-gray-100', 'text-gray-800');
-            } else {
-                btnSave.disabled = true;
-                btnSave.className = "w-full bg-gray-300 text-gray-500 cursor-not-allowed font-bold py-4 rounded-xl shadow transition-colors text-lg flex justify-center items-center gap-2 border";
-                btnEdit.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Habilitar Edición`;
-                btnEdit.classList.remove('bg-red-100', 'text-red-700', 'border-red-200');
-                btnEdit.classList.add('bg-gray-100', 'text-gray-800');
+                btnEdit.className = "bg-red-100 hover:bg-red-200 text-red-700 border border-red-200 font-bold py-2 px-4 rounded shadow-sm transition-colors flex items-center gap-2";
             }
         };
 
-        window.guardarPreciosAdmin = function() {
+        window.agregarAreaAdmin = function(version) {
+            if(!window.isEditingAdminPrices) return;
+            const input = document.getElementById('new-area-' + version);
+            const val = input.value.trim();
+            if(!val) return window.mostrarToast("Ingresa un nombre válido", "error");
+            
+            window.guardarPreciosAdmin(true);
+            
+            if(!window.adminSettings.areasPorSeccion) {
+                const defaultAreas = window.adminSettings.areas || ['Lenguaje', 'Matemáticas', 'Estadística', 'Geometría', 'Sociales', 'Historia', 'Geografía', 'Filosofía', 'Economía', 'Política', 'Eco política', 'Democracia', 'Cátedra socio emocional', 'Naturales', 'Biología', 'Medio ambiente', 'Química', 'Física', 'Inglés', 'Informática', 'Edu física', 'Religión', 'Ética', 'Artística'];
+                window.adminSettings.areasPorSeccion = { A: [...defaultAreas], Gamma: [...defaultAreas], B: [...defaultAreas] };
+            }
+            if(!window.adminSettings.areasPorSeccion[version]) {
+                window.adminSettings.areasPorSeccion[version] = [];
+            }
+            
+            if(!window.adminSettings.areasPorSeccion[version].includes(val)) {
+                window.adminSettings.areasPorSeccion[version].push(val);
+                input.value = '';
+                window.hasAdminChanges = true;
+                window.renderizarYMantenerEdicion();
+            } else {
+                window.mostrarToast("El área ya existe en esta sección", "error");
+            }
+        };
+        
+        window.confirmarEliminarArea = function(areaStr, version) {
+            if(!window.isEditingAdminPrices) return;
+            const msg = `¿Seguro que deseas eliminar el área: <b class="text-red-600">${areaStr}</b> de la sección <b>${version}</b>? Se perderán sus precios configurados en esta sección.`;
+            document.getElementById('modal-eliminar-area-msg').innerHTML = msg;
+            const btn = document.getElementById('btn-confirm-delete-area');
+            btn.onclick = function() {
+                document.getElementById('modal-eliminar-area').classList.add('hidden');
+                window.eliminarAreaAdmin(areaStr, version);
+            };
+            document.getElementById('modal-eliminar-area').classList.remove('hidden');
+        };
+
+        window.eliminarAreaAdmin = function(areaStr, version) {
+            window.guardarPreciosAdmin(true);
+            if(window.adminSettings.areasPorSeccion && window.adminSettings.areasPorSeccion[version]) {
+                window.adminSettings.areasPorSeccion[version] = window.adminSettings.areasPorSeccion[version].filter(a => a !== areaStr);
+            }
+            window.hasAdminChanges = true;
+            window.renderizarYMantenerEdicion();
+        };
+    
+        window.guardarPreciosAdmin = function(soloMemoria = false) {
+            if(!window.adminSettings) window.adminSettings = { planesPrices: {}, mallasPrices: {A:0,B:0,Y:0}, globalExamenPrice: 0 };
             window.adminSettings.mallasPrices.A = Number(document.getElementById('set-malla-a').value) || 0;
             window.adminSettings.mallasPrices.B = Number(document.getElementById('set-malla-b').value) || 0;
             window.adminSettings.mallasPrices.Y = Number(document.getElementById('set-malla-y').value) || 0;
             window.adminSettings.globalExamenPrice = Number(document.getElementById('set-examen').value) || 0;
             
-            const AREAS = ['Lenguaje', 'Matemáticas', 'Estadística', 'Geometría', 'Sociales', 'Historia', 'Geografía', 'Filosofía', 'Economía', 'Política', 'Eco política', 'Democracia', 'Cátedra socio emocional', 'Naturales', 'Biología', 'Medio ambiente', 'Química', 'Física', 'Inglés', 'Informática', 'Edu física', 'Religión', 'Ética', 'Artística'];
+            if(!window.adminSettings.areasPorSeccion) {
+                const defaultAreas = window.adminSettings.areas || ['Lenguaje', 'Matemáticas', 'Estadística', 'Geometría', 'Sociales', 'Historia', 'Geografía', 'Filosofía', 'Economía', 'Política', 'Eco política', 'Democracia', 'Cátedra socio emocional', 'Naturales', 'Biología', 'Medio ambiente', 'Química', 'Física', 'Inglés', 'Informática', 'Edu física', 'Religión', 'Ética', 'Artística'];
+                window.adminSettings.areasPorSeccion = { A: [...defaultAreas], Gamma: [...defaultAreas], B: [...defaultAreas] };
+            }
+            
             const pri_grades = ["1°", "2°", "3°", "4°", "5°"];
             const sec_grades = ["6°", "7°", "8°", "9°", "10°", "11°"];
             
-            AREAS.forEach(area => {
-                if(!window.adminSettings.planesPrices[area]) window.adminSettings.planesPrices[area] = {};
-                
-                ['A', 'Gamma'].forEach(ver => {
+            ['A', 'Gamma'].forEach(ver => {
+                const areasList = window.adminSettings.areasPorSeccion[ver] || [];
+                areasList.forEach(area => {
+                    if(!window.adminSettings.planesPrices[area]) window.adminSettings.planesPrices[area] = {};
                     if(!window.adminSettings.planesPrices[area][ver]) window.adminSettings.planesPrices[area][ver] = {};
                     pri_grades.forEach(g => {
                         const el = document.getElementById(`plane-${area}-${ver}-${g}`);
                         if(el) window.adminSettings.planesPrices[area][ver][g] = Number(el.value) || 0;
                     });
                 });
-                
-                ['B'].forEach(ver => {
+            });
+
+            ['B'].forEach(ver => {
+                const areasList = window.adminSettings.areasPorSeccion[ver] || [];
+                areasList.forEach(area => {
+                    if(!window.adminSettings.planesPrices[area]) window.adminSettings.planesPrices[area] = {};
                     if(!window.adminSettings.planesPrices[area][ver]) window.adminSettings.planesPrices[area][ver] = {};
                     sec_grades.forEach(g => {
                         const el = document.getElementById(`plane-${area}-${ver}-${g}`);
@@ -715,24 +823,61 @@
                     });
                 });
             });
-
-            fetch(`${window.API_URL}/settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(window.adminSettings)
-            }).then(() => {
-                if(window.mostrarToast) window.mostrarToast('✅ Valores guardados correctamente.');
-                else alert('✅ Valores guardados correctamente.');
-                if(window.cargarPreciosData) window.cargarPreciosData();
-                window.toggleAdminEdit(); // Block again
-            }).catch(e => {
-                console.error("Error al guardar:", e);
-                if(window.mostrarToast) window.mostrarToast('❌ Error al guardar los valores.');
-                else alert('❌ Error al guardar los valores.');
-            });
+            
+            if(!soloMemoria) {
+                const btnSave = document.getElementById('btn-admin-save');
+                if(btnSave) {
+                    btnSave.disabled = true;
+                    btnSave.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Guardando...`;
+                }
+                fetch(`${window.API_URL || 'https://cotizador-ihj3.onrender.com/api'}/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(window.adminSettings)
+                })
+                .then(res => {
+                    if(!res.ok) throw new Error("Error HTTP " + res.status);
+                    return res.json();
+                })
+                .then(data => {
+                    window.isEditingAdminPrices = false;
+                    window.hasAdminChanges = false;
+                    window.mostrarToast("Cambios guardados en la nube exitosamente", "success");
+                    window.cargarPreciosAdmin();
+                })
+                .catch(e => {
+                    console.error("Error al guardar:", e);
+                    window.mostrarToast("Error al guardar los cambios: " + e.message, "error");
+                    if(btnSave) {
+                        btnSave.disabled = false;
+                        btnSave.innerHTML = `Guardar Todos los Valores en la Nube`;
+                    }
+                });
+            }
         };
-
-        window.appData = { currentUser: null, isAdminGlobal: false, quotes: [], usuarios: [] };
+        
+        window.cargarPreciosAdmin = function() {
+            fetch(`${window.API_URL || 'https://cotizador-ihj3.onrender.com/api'}/settings`)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data) data = { planesPrices: {}, mallasPrices: {A:0,B:0,Y:0}, globalExamenPrice: 0 };
+                    if (!data.areasPorSeccion) {
+                        const defaultAreas = data.areas || ['Lenguaje', 'Matemáticas', 'Estadística', 'Geometría', 'Sociales', 'Historia', 'Geografía', 'Filosofía', 'Economía', 'Política', 'Eco política', 'Democracia', 'Cátedra socio emocional', 'Naturales', 'Biología', 'Medio ambiente', 'Química', 'Física', 'Inglés', 'Informática', 'Edu física', 'Religión', 'Ética', 'Artística'];
+                        data.areasPorSeccion = {
+                            'A': [...defaultAreas],
+                            'Gamma': [...defaultAreas],
+                            'B': [...defaultAreas]
+                        };
+                    }
+                    window.adminSettings = data;
+                    if (typeof window.renderizarDashboard === 'function' && window.activeTab === 'precios') {
+                        window.renderizarDashboard();
+                    }
+                })
+                .catch(e => console.error("Error loading admin settings:", e));
+        };
+        window.cargarPreciosAdmin();
+        
         window.ORDER_GRADOS = ["1°", "2°", "3°", "4°", "5°", "6°", "7°", "8°", "9°", "10°", "11°"];
         let targetUserForLogin = '';
 
@@ -882,6 +1027,9 @@
                 cerrarModalLogin();
                 window.appData.isAdminGlobal = (user.role === 'admin');
                 sessionStorage.setItem('isAdmin', window.appData.isAdminGlobal);
+                if (user.role === 'admin') {
+                    sessionStorage.setItem('adminOriginalName', nombreIngresado);
+                }
                 iniciarSesionDashboard(nombreIngresado);
             } else {
                 window.mostrarToast("Contraseña incorrecta.");
@@ -893,6 +1041,11 @@
             window.appData.currentUser = nombre;
             sessionStorage.setItem('currentUser', nombre);
             document.getElementById('dash-username').innerText = nombre;
+
+            const content = document.getElementById('dashboard-content');
+            if (content) {
+                content.innerHTML = '<div class="flex flex-col justify-center items-center h-64 w-full"><div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#F2A900]"></div><p class="mt-4 text-[#172042] font-bold">Cargando perfil de ' + nombre + '...</p></div>';
+            }
 
             fetch(`${API_URL}/cotizaciones`).then(res => res.json()).then(data => {
                 window.appData.quotes = data;
@@ -910,10 +1063,18 @@
             sessionStorage.setItem('currentUser', originalAdmin);
             document.getElementById('dash-username').innerText = originalAdmin;
 
+            const content = document.getElementById('dashboard-content');
+            if (content) {
+                content.innerHTML = '<div class="flex flex-col justify-center items-center h-64 w-full"><div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#F2A900]"></div><p class="mt-4 text-[#172042] font-bold">Volviendo a vista Administrador...</p></div>';
+            }
+
             fetch(`${API_URL}/cotizaciones`).then(res => res.json()).then(data => {
                 window.appData.quotes = data;
                 renderizarDashboard();
                 window.mostrarToast(`Modo Administrador Restablecido`);
+            }).catch(e => {
+                renderizarDashboard();
+                window.mostrarToast(`Modo Administrador Restablecido (offline)`);
             });
         }
 
@@ -932,19 +1093,21 @@
                 badge.classList.add('hidden');
                 btnManageUsers.classList.add('hidden');
             }
+            
+            window.mostrarToast(`Bienvenido a tu perfil ${nombre}`);
             cambiarVista('dashboard');
+            
+            const content = document.getElementById('dashboard-content');
+            if (content) {
+                content.innerHTML = '<div class="flex flex-col justify-center items-center h-64 w-full"><div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#F2A900]"></div><p class="mt-4 text-[#172042] font-bold">Cargando cotizaciones...</p></div>';
+            }
 
             fetch(`${API_URL}/cotizaciones`).then(res => res.json()).then(data => {
                 window.appData.quotes = data;
                 renderizarDashboard();
-                if (window.appData.isAdminGlobal && nombre === (sessionStorage.getItem('adminOriginalName') || 'Admin')) {
-                    window.mostrarToast(`Sesión iniciada como Administrador. Historial actualizado.`);
-                } else {
-                    window.mostrarToast(`Has ingresado como asesor: ${nombre}. Historial actualizado.`);
-                }
             }).catch(e => {
                 renderizarDashboard();
-                window.mostrarToast(`Sesión iniciada como: ${nombre} (offline)`);
+                window.mostrarToast(`Modo offline`);
             });
         }
 
@@ -1353,18 +1516,22 @@
                 }
 
                 if (activeTab === 'precios') {
-                    const s = window.adminSettings || { planesPrices: {}, mallasPrices: {A:0,B:0,Y:0}, globalExamenPrice: 0 };
-                    const AREAS = ['Lenguaje', 'Matemáticas', 'Estadística', 'Geometría', 'Sociales', 'Historia', 'Geografía', 'Filosofía', 'Economía', 'Política', 'Eco política', 'Democracia', 'Cátedra socio emocional', 'Naturales', 'Biología', 'Medio ambiente', 'Química', 'Física', 'Inglés', 'Informática', 'Edu física', 'Religión', 'Ética', 'Artística'];
+                    const s = window.adminSettings || {};
+                    const planesPrices = s.planesPrices || {};
+                    const mallasPrices = s.mallasPrices || {A:0,B:0,Y:0};
+                    const globalExamenPrice = s.globalExamenPrice || '';
+                    const AREAS = s.areas || ['Lenguaje', 'Matemáticas', 'Estadística', 'Geometría', 'Sociales', 'Historia', 'Geografía', 'Filosofía', 'Economía', 'Política', 'Eco política', 'Democracia', 'Cátedra socio emocional', 'Naturales', 'Biología', 'Medio ambiente', 'Química', 'Física', 'Inglés', 'Informática', 'Edu física', 'Religión', 'Ética', 'Artística'];
                     
                     const pri_grades = ["1°", "2°", "3°", "4°", "5°"];
                     const sec_grades = ["6°", "7°", "8°", "9°", "10°", "11°"];
                     
                     function getTableHtml(version, gradesArray, title) {
+                        const areasList = s.areasPorSeccion ? (s.areasPorSeccion[version] || []) : AREAS;
                         let t = `<h4 class="font-bold text-[#172042] mb-3 mt-6 border-b pb-2 flex items-center justify-between">
                                     <span>${title}</span>
                                     <span class="text-xs font-normal text-gray-500">Valor Unitario por Periodo</span>
                                  </h4>
-                                 <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-[500px] overflow-y-auto mb-6 shadow-inner bg-white">
+                                 <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-[500px] overflow-y-auto shadow-inner bg-white">
                                     <table class="w-full text-left text-sm border-collapse relative">
                                         <thead class="bg-[#172042] text-white sticky top-0 z-10 shadow">
                                             <tr>
@@ -1373,16 +1540,25 @@
                         t += `              </tr>
                                         </thead>
                                         <tbody class="divide-y divide-gray-200">`;
-                        AREAS.forEach(area => {
+                        areasList.forEach(area => {
                             t += `<tr class="hover:bg-blue-50 transition-colors">
-                                    <td class="p-3 font-bold text-gray-700 bg-gray-50 border-r border-gray-200 whitespace-nowrap sticky left-0">${area}</td>`;
+                                    <td class="p-3 font-bold text-gray-700 bg-gray-50 border-r border-gray-200 whitespace-nowrap sticky left-0 flex items-center justify-between gap-2 w-48">
+                                        <span>${area}</span>
+                                        <button onclick="window.confirmarEliminarArea('${area}', '${version}')" class="admin-price-input text-red-500 hover:text-red-700 disabled:opacity-0 disabled:cursor-default transition-colors p-1 rounded" title="Eliminar Área" disabled>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                                        </button>
+                                    </td>`;
                             gradesArray.forEach(g => {
-                                const val = s.planesPrices[area]?.[version]?.[g] || '';
+                                const val = (planesPrices[area] && planesPrices[area][version] && planesPrices[area][version][g]) || '';
                                 t += `<td class="p-2 text-center"><input type="number" id="plane-${area}-${version}-${g}" value="${val}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed border border-gray-300 p-2 w-full max-w-[100px] rounded focus:ring-2 focus:ring-[#F2A900] outline-none font-mono text-center" placeholder="0" disabled /></td>`;
                             });
                             t += `</tr>`;
                         });
-                        t += `      </tbody></table></div>`;
+                        t += `      </tbody></table></div>
+                                    <div class="mt-3 flex gap-2 w-full max-w-md mb-8">
+                                        <input type="text" id="new-area-${version}" placeholder="Nueva área para esta sección..." class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed border border-gray-300 rounded p-2 outline-none text-sm flex-1 focus:ring-2 focus:ring-[#F2A900]" disabled />
+                                        <button onclick="window.agregarAreaAdmin('${version}')" class="admin-price-input disabled:opacity-70 disabled:cursor-not-allowed bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded transition-colors text-sm shadow-sm" disabled>Agregar</button>
+                                    </div>`;
                         return t;
                     }
 
@@ -1404,14 +1580,22 @@
                                 <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm relative">
                                     <h4 class="font-bold text-[#172042] mb-4 border-b pb-2">Precios Globales Mallas</h4>
                                     <div class="space-y-4">
-                                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Mallas Ver A ($)</label><input type="number" id="set-malla-a" value="${s.mallasPrices.A || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#F2A900]" disabled /></div>
-                                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Mallas Ver B ($)</label><input type="number" id="set-malla-b" value="${s.mallasPrices.B || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#F2A900]" disabled /></div>
-                                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Mallas Ver Y ($)</label><input type="number" id="set-malla-y" value="${s.mallasPrices.Y || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#F2A900]" disabled /></div>
+                                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Mallas Ver A ($)</label><input type="number" id="set-malla-a" value="${mallasPrices.A || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#F2A900]" disabled /></div>
+                                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Mallas Ver B ($)</label><input type="number" id="set-malla-b" value="${mallasPrices.B || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#F2A900]" disabled /></div>
+                                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Mallas Ver Y ($)</label><input type="number" id="set-malla-y" value="${mallasPrices.Y || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#F2A900]" disabled /></div>
                                     </div>
                                 </div>
                                 <div class="bg-green-50 p-4 rounded-xl border border-green-200 shadow-sm h-fit">
                                     <h4 class="font-bold text-green-900 mb-4 border-b border-green-200 pb-2">Precio Global Exámenes</h4>
-                                    <div><label class="block text-xs font-bold text-green-800 mb-1">Valor Unitario por Examen ($)</label><input type="number" id="set-examen" value="${s.globalExamenPrice || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border border-green-300 rounded p-2 outline-none font-mono focus:ring-2 focus:ring-green-500" disabled /></div>
+                                    <div><label class="block text-xs font-bold text-green-800 mb-1">Valor Unitario por Examen ($)</label><input type="number" id="set-examen" value="${globalExamenPrice || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border border-green-300 rounded p-2 outline-none font-mono focus:ring-2 focus:ring-green-500" disabled /></div>
+                                </div>
+                                <div class="bg-purple-50 p-4 rounded-xl border border-purple-200 shadow-sm md:col-span-2 mt-2">
+                                    <h4 class="font-bold text-purple-900 mb-4 border-b border-purple-200 pb-2">Gestión de Áreas (Materiales)</h4>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="admin-new-area" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border border-purple-300 rounded p-2 outline-none focus:ring-2 focus:ring-purple-500" placeholder="Nombre de la nueva área (ej. Programación)" disabled />
+                                        <button onclick="window.agregarAreaAdmin()" class="admin-price-input bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>Agregar</button>
+                                    </div>
+                                    <p class="text-xs text-purple-700 mt-2">Activa la edición para agregar o eliminar áreas de las tablas de precios de planes abajo.</p>
                                 </div>
                             </div>
 
@@ -4283,6 +4467,22 @@ ReactDOM.createRoot(document.getElementById('cotizador-predisenado-root')).rende
 
 
     </script>
+    <div id="modal-eliminar-area" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-sm w-full overflow-hidden transform transition-all">
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4 text-red-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+                    <h3 class="text-xl font-bold">Eliminar Área</h3>
+                </div>
+                <p class="text-gray-600 mb-6 text-sm" id="modal-eliminar-area-msg"></p>
+                <div class="flex justify-end gap-3">
+                    <button onclick="document.getElementById('modal-eliminar-area').classList.add('hidden')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded font-bold transition-colors shadow-sm text-sm">Cancelar</button>
+                    <button id="btn-confirm-delete-area" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors shadow-sm text-sm">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>
