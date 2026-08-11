@@ -787,6 +787,8 @@
     
         window.guardarPreciosAdmin = function(soloMemoria = false) {
             if(!window.adminSettings) window.adminSettings = { planesPrices: {}, mallasPrices: {A:0,B:0,Y:0}, globalExamenPrice: 0 };
+            if(!window.adminSettings.mallasPrices) window.adminSettings.mallasPrices = {A:0,B:0,Y:0};
+            if(!window.adminSettings.planesPrices) window.adminSettings.planesPrices = {};
             window.adminSettings.mallasPrices.A = Number(document.getElementById('set-malla-a').value) || 0;
             window.adminSettings.mallasPrices.B = Number(document.getElementById('set-malla-b').value) || 0;
             window.adminSettings.mallasPrices.Y = Number(document.getElementById('set-malla-y').value) || 0;
@@ -860,7 +862,9 @@
             fetch(`${window.API_URL || 'https://cotizador-ihj3.onrender.com/api'}/settings`)
                 .then(res => res.json())
                 .then(data => {
-                    if (!data) data = { planesPrices: {}, mallasPrices: {A:0,B:0,Y:0}, globalExamenPrice: 0 };
+                    if (!data || Object.keys(data).length === 0) data = { planesPrices: {}, mallasPrices: {A:0,B:0,Y:0}, globalExamenPrice: 0 };
+                    if (!data.planesPrices) data.planesPrices = {};
+                    if (!data.mallasPrices) data.mallasPrices = {A:0,B:0,Y:0};
                     if (!data.areasPorSeccion) {
                         const defaultAreas = data.areas || ['Lenguaje', 'Matemáticas', 'Estadística', 'Geometría', 'Sociales', 'Historia', 'Geografía', 'Filosofía', 'Economía', 'Política', 'Eco política', 'Democracia', 'Cátedra socio emocional', 'Naturales', 'Biología', 'Medio ambiente', 'Química', 'Física', 'Inglés', 'Informática', 'Edu física', 'Religión', 'Ética', 'Artística'];
                         data.areasPorSeccion = {
@@ -1588,14 +1592,6 @@
                                 <div class="bg-green-50 p-4 rounded-xl border border-green-200 shadow-sm h-fit">
                                     <h4 class="font-bold text-green-900 mb-4 border-b border-green-200 pb-2">Precio Global Exámenes</h4>
                                     <div><label class="block text-xs font-bold text-green-800 mb-1">Valor Unitario por Examen ($)</label><input type="number" id="set-examen" value="${globalExamenPrice || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border border-green-300 rounded p-2 outline-none font-mono focus:ring-2 focus:ring-green-500" disabled /></div>
-                                </div>
-                                <div class="bg-purple-50 p-4 rounded-xl border border-purple-200 shadow-sm md:col-span-2 mt-2">
-                                    <h4 class="font-bold text-purple-900 mb-4 border-b border-purple-200 pb-2">Gestión de Áreas (Materiales)</h4>
-                                    <div class="flex gap-2">
-                                        <input type="text" id="admin-new-area" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border border-purple-300 rounded p-2 outline-none focus:ring-2 focus:ring-purple-500" placeholder="Nombre de la nueva área (ej. Programación)" disabled />
-                                        <button onclick="window.agregarAreaAdmin()" class="admin-price-input bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>Agregar</button>
-                                    </div>
-                                    <p class="text-xs text-purple-700 mt-2">Activa la edición para agregar o eliminar áreas de las tablas de precios de planes abajo.</p>
                                 </div>
                             </div>
 
