@@ -2,12 +2,28 @@
 <html lang="es">
 
 <head>
+<script>
+window.onerror = function(message, source, lineno, colno, error) {
+    alert('JS Error: ' + message + ' at ' + lineno + ':' + colno);
+};
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
     <title>Cotizador Educativo - Hamilton</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Arial', 'Helvetica', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -798,6 +814,66 @@
             if(window.renderizarYMantenerEdicion) window.hasAdminChanges = true;
         };
 
+        
+        window.agregarMallaAdmin = function(version) {
+            if(!window.isEditingAdminPrices) return;
+            const inputArea = document.getElementById('new-malla-area-' + version);
+            const checkboxes = document.querySelectorAll('.malla-cb-' + version + ':checked');
+            const area = inputArea.value.trim();
+            const selected = Array.from(checkboxes).map(cb => cb.value);
+            const grado = selected.join(', ');
+            if(!area || selected.length === 0) return window.mostrarToast("Ingresa un nombre y selecciona al menos un grado", "error");
+            window.guardarPreciosAdmin(true);
+            if(!window.adminSettings.mallasPorSeccion) window.adminSettings.mallasPorSeccion = {A:[], Gamma:[], B:[], Preescolar:[]};
+            if(!window.adminSettings.mallasPorSeccion[version]) window.adminSettings.mallasPorSeccion[version] = [];
+            
+            window.adminSettings.mallasPorSeccion[version].push({ area, grado });
+            inputArea.value = '';
+            document.querySelectorAll('.malla-cb-' + version).forEach(cb => cb.checked = false);
+            window.hasAdminChanges = true;
+            window.renderizarYMantenerEdicion();
+        };
+
+        window.eliminarMallaAdmin = function(idx, version) {
+            window.guardarPreciosAdmin(true);
+            if(window.adminSettings.mallasPorSeccion && window.adminSettings.mallasPorSeccion[version]) {
+                window.adminSettings.mallasPorSeccion[version].splice(idx, 1);
+            }
+            window.hasAdminChanges = true;
+            window.renderizarYMantenerEdicion();
+        };
+
+        window.agregarExamenAdmin = function() {
+            if(!window.isEditingAdminPrices) return;
+            const inputArea = document.getElementById('new-examen-area');
+            const inputGrado = document.getElementById('new-examen-grado');
+            const area = inputArea.value.trim();
+            const grado = inputGrado.value.trim();
+            if(!area || !grado) return window.mostrarToast("Ingresa un área y grado válidos", "error");
+            window.guardarPreciosAdmin(true);
+            if(!window.adminSettings.examenesLista) window.adminSettings.examenesLista = [];
+            
+            const exists = window.adminSettings.examenesLista.some(e => e.area === area && e.grado === grado);
+            if(!exists) {
+                window.adminSettings.examenesLista.push({ area, grado });
+                inputArea.value = '';
+                inputGrado.value = '';
+                window.hasAdminChanges = true;
+                window.renderizarYMantenerEdicion();
+            } else {
+                window.mostrarToast("El examen ya existe", "error");
+            }
+        };
+
+        window.eliminarExamenAdmin = function(idx) {
+            window.guardarPreciosAdmin(true);
+            if(window.adminSettings.examenesLista) {
+                window.adminSettings.examenesLista.splice(idx, 1);
+            }
+            window.hasAdminChanges = true;
+            window.renderizarYMantenerEdicion();
+        };
+
         window.eliminarAreaAdmin = function(areaStr, version) {
             window.guardarPreciosAdmin(true);
             if(window.adminSettings.areasPorSeccion && window.adminSettings.areasPorSeccion[version]) {
@@ -809,12 +885,20 @@
     
         window.guardarPreciosAdmin = function(soloMemoria = false) {
             if(!window.adminSettings) window.adminSettings = { planesPrices: {}, mallasPrices: {A:0,B:0,Y:0}, globalExamenPrice: 0 };
-            if(!window.adminSettings.mallasPrices) window.adminSettings.mallasPrices = {A:0,B:0,Y:0};
+            if(!window.adminSettings.mallasPrices) window.adminSettings.mallasPrices = {A:0,B:0,Y:0,Preescolar:0};
+            if(!window.adminSettings.mallasPorSeccion) window.adminSettings.mallasPorSeccion = {A:[], Gamma:[], B:[], Preescolar:[]};
+            if(!window.adminSettings.examenesLista) window.adminSettings.examenesLista = [];
             if(!window.adminSettings.planesPrices) window.adminSettings.planesPrices = {};
-            window.adminSettings.mallasPrices.A = Number(document.getElementById('set-malla-a').value) || 0;
-            window.adminSettings.mallasPrices.B = Number(document.getElementById('set-malla-b').value) || 0;
-            window.adminSettings.mallasPrices.Y = Number(document.getElementById('set-malla-y').value) || 0;
-            window.adminSettings.globalExamenPrice = Number(document.getElementById('set-examen').value) || 0;
+            const elA = document.getElementById('set-malla-a');
+            if(elA) window.adminSettings.mallasPrices.A = Number(elA.value) || 0;
+            const elB = document.getElementById('set-malla-b');
+            if(elB) window.adminSettings.mallasPrices.B = Number(elB.value) || 0;
+            const elY = document.getElementById('set-malla-y');
+            if(elY) window.adminSettings.mallasPrices.Y = Number(elY.value) || 0;
+            const elPre = document.getElementById('set-malla-pre');
+            if(elPre) window.adminSettings.mallasPrices.Preescolar = Number(elPre.value) || 0;
+            const elEx = document.getElementById('set-examen');
+            if(elEx) window.adminSettings.globalExamenPrice = Number(elEx.value) || 0;
             
             if(!window.adminSettings.areasPorSeccion) {
                 const defaultAreas = window.adminSettings.areas || ['Lenguaje', 'Matemáticas', 'Estadística', 'Geometría', 'Sociales', 'Historia', 'Geografía', 'Filosofía', 'Economía', 'Política', 'Eco política', 'Democracia', 'Cátedra socio emocional', 'Naturales', 'Biología', 'Medio ambiente', 'Química', 'Física', 'Inglés', 'Informática', 'Edu física', 'Religión', 'Ética', 'Artística'];
@@ -823,7 +907,22 @@
             
             const pri_grades = ["1°", "2°", "3°", "4°", "5°"];
             const sec_grades = ["6°", "7°", "8°", "9°", "10°", "11°"];
+            const pre_grades = ["Pre jardín", "Jardín", "Transición"];
             
+            // Preescolar does not use areas, it just uses the grades directly as "Area"
+            if(!window.adminSettings.planesPrices['Preescolar']) window.adminSettings.planesPrices['Preescolar'] = {};
+            if(!window.adminSettings.planesPrices['Preescolar']['Preescolar']) window.adminSettings.planesPrices['Preescolar']['Preescolar'] = {};
+            pre_grades.forEach(g => {
+                const el = document.getElementById(`plane-Preescolar-Preescolar-${g}`);
+                if(el) {
+                    if (el.classList.contains('hidden')) {
+                        window.adminSettings.planesPrices['Preescolar']['Preescolar'][g] = -1;
+                    } else {
+                        window.adminSettings.planesPrices['Preescolar']['Preescolar'][g] = Number(el.value) || 0;
+                    }
+                }
+            });
+
             ['A', 'Gamma'].forEach(ver => {
                 const areasList = window.adminSettings.areasPorSeccion[ver] || [];
                 areasList.forEach(area => {
@@ -1431,7 +1530,7 @@
                                 <button onclick="window.cambiarAdminTab('historial')" class="w-full text-left px-6 py-4 hover:bg-[#22305c] hover:text-white transition-colors border-l-4 ${activeTab === 'historial' ? 'border-[#F2A900] bg-[#22305c] text-white font-bold' : 'border-transparent'} flex items-center gap-3">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Todas Cotizaciones
                                 </button>
-                                <button onclick="window.cambiarAdminTab('precios')" class="w-full text-left px-6 py-4 hover:bg-[#22305c] hover:text-white transition-colors border-l-4 ${activeTab === 'precios' ? 'border-[#F2A900] bg-[#22305c] text-white font-bold' : 'border-transparent'} flex items-center gap-3 border-t border-gray-700">
+                                <button onclick="window.cambiarAdminTab('precios')" class="w-full text-left px-6 py-4 hover:bg-[#22305c] hover:text-white transition-colors border-l-4 ${activeTab && activeTab.startsWith('precios') ? 'border-[#F2A900] bg-[#22305c] text-white font-bold' : 'border-transparent'} flex items-center gap-3 border-t border-gray-700">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Valores Prediseñados
                                 </button>
                              </div>
@@ -1553,7 +1652,7 @@
                     html += `</tbody></table></div>`;
                 }
 
-                if (activeTab === 'precios') {
+                if (activeTab && activeTab.startsWith('precios')) {
                     const s = window.adminSettings || {};
                     const planesPrices = s.planesPrices || {};
                     const mallasPrices = s.mallasPrices || {A:0,B:0,Y:0};
@@ -1562,6 +1661,7 @@
                     
                     const pri_grades = ["1°", "2°", "3°", "4°", "5°"];
                     const sec_grades = ["6°", "7°", "8°", "9°", "10°", "11°"];
+            const pre_grades = ["Pre jardín", "Jardín", "Transición"];
                     
                     function getTableHtml(version, gradesArray, title) {
                         const areasList = s.areasPorSeccion ? (s.areasPorSeccion[version] || []) : AREAS;
@@ -1573,7 +1673,7 @@
                                     <table class="w-full text-left text-sm border-collapse relative">
                                         <thead class="bg-[#172042] text-white sticky top-0 z-10 shadow">
                                             <tr>
-                                                <th class="p-3 border-b border-gray-700 bg-[#172042]">Área</th>`;
+                                                <th class="p-3 border-b border-gray-700 bg-[#172042]">Planes</th>`;
                         gradesArray.forEach(g => t += `<th class="p-3 border-b border-gray-700 text-center bg-[#172042] min-w-[80px]">${g}</th>`);
                         t += `              </tr>
                                         </thead>
@@ -1613,44 +1713,225 @@
 
                     const tableA = getTableHtml('A', pri_grades, 'Precios Planes: Versión A (Primaria)');
                     const tableGamma = getTableHtml('Gamma', pri_grades, 'Precios Planes: Versión Gamma/Y (Primaria)');
+                    
+                    let tablePre = `<h4 class="font-bold text-[#172042] mb-3 mt-6 border-b pb-2 flex items-center justify-between">
+                                    <span>Precios Planes: Preescolar (Pública/Privada)</span>
+                                    <span class="text-xs font-normal text-gray-500">Valor Unitario por Periodo</span>
+                                 </h4>
+                                 <div class="overflow-x-auto border border-gray-200 rounded-lg shadow-inner bg-white">
+                                    <table class="w-full text-left text-sm border-collapse relative">
+                                        <thead class="bg-[#172042] text-white">
+                                            <tr>
+                                                <th class="p-3 border-b border-gray-700 bg-[#172042]">Planes</th>`;
+                    pre_grades.forEach(g => tablePre += `<th class="p-3 border-b border-gray-700 text-center bg-[#172042] min-w-[80px]">${g}</th>`);
+                    tablePre += `              </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-200">
+                                            <tr class="hover:bg-blue-50 transition-colors">
+                                                <td class="p-3 font-bold text-gray-800">Precios por Grado</td>`;
+                    
+                    pre_grades.forEach(g => {
+                        const val = s.planesPrices && s.planesPrices['Preescolar'] && s.planesPrices['Preescolar']['Preescolar'] && s.planesPrices['Preescolar']['Preescolar'][g] !== undefined && s.planesPrices['Preescolar']['Preescolar'][g] !== -1 ? s.planesPrices['Preescolar']['Preescolar'][g] : '';
+                        tablePre += `<td class="p-2 border-l border-gray-200">
+                                        <input type="number" id="plane-Preescolar-Preescolar-${g}" value="${val}" class="admin-price-input disabled:opacity-70 disabled:cursor-not-allowed w-full border border-gray-300 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-blue-400 font-mono text-center" disabled />
+                                     </td>`;
+                    });
+                    
+                    tablePre += `           </tr>
+                                        </tbody>
+                                    </table>
+                                 </div>`;
+
+                    
+                    function getMallasTableHtml(version) {
+                        const mallasList = s.mallasPorSeccion ? (s.mallasPorSeccion[version] || []) : [];
+                        let possibleGrades = [];
+                        if (version === 'Preescolar') possibleGrades = ["Pre jardín", "Jardín", "Transición"];
+                        else if (version === 'B') possibleGrades = ["6", "7", "8", "9", "10", "11"];
+                        else possibleGrades = ["1", "2", "3", "4", "5"];
+                        
+                        let cbHtml = `<div class="flex flex-wrap gap-2 items-center justify-center">`;
+                        possibleGrades.forEach(g => {
+                            cbHtml += `<label class="flex items-center gap-1 text-xs cursor-pointer select-none text-gray-700 bg-white border border-gray-200 rounded px-2 py-1 hover:bg-gray-50 transition-colors"><input type="checkbox" value="${g}°" class="malla-cb-${version} admin-price-input w-3 h-3 text-purple-600 focus:ring-purple-500 border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled /> ${g.replace('°','')}</label>`;
+                        });
+                        cbHtml += `</div>`;
+
+                        let t = `<div class="overflow-x-auto border border-gray-200 rounded-lg shadow-inner bg-white mt-4">
+                                    <table class="w-full text-left text-sm border-collapse relative">
+                                        <thead class="bg-blue-900 text-white">
+                                            <tr>
+                                                <th class="p-3 border-b border-gray-700">Mallas</th>
+                                                <th class="p-3 border-b border-gray-700 text-center">Grados</th>
+                                                <th class="p-3 border-b border-gray-700 w-24 text-center">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-200">`;
+                        mallasList.forEach((malla, idx) => {
+                            const areaStr = typeof malla === 'string' ? malla : malla.area;
+                            const gradoStr = typeof malla === 'string' ? 'Todos' : malla.grado;
+                            t += `<tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="p-3 font-bold text-gray-800">${areaStr}</td>
+                                    <td class="p-3 text-gray-600 text-center">${gradoStr}</td>
+                                    <td class="p-2 text-center">
+                                        <button onclick="window.eliminarMallaAdmin(${idx}, '${version}')" class="admin-price-input disabled:opacity-70 disabled:cursor-not-allowed bg-red-100 hover:bg-red-200 text-red-700 p-1 rounded" title="Eliminar" disabled><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg></button>
+                                    </td>
+                                  </tr>`;
+                        });
+                        t += `      <tr class="bg-gray-100">
+                                        <td class="p-2 border-r border-gray-300">
+                                            <input type="text" id="new-malla-area-${version}" placeholder="Nombre del área..." class="admin-price-input disabled:opacity-70 disabled:cursor-not-allowed w-full border border-gray-300 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-purple-400 font-mono" disabled />
+                                        </td>
+                                        <td class="p-2 border-r border-gray-300">
+                                            ${cbHtml}
+                                        </td>
+                                        <td class="p-2 text-center">
+                                            <button onclick="window.agregarMallaAdmin('${version}')" class="admin-price-input disabled:opacity-70 disabled:cursor-not-allowed bg-blue-900 hover:bg-blue-800 text-white font-bold py-1 px-4 rounded transition-colors text-sm shadow-sm" disabled>Agregar</button>
+                                        </td>
+                                    </tr>
+                                    </tbody></table></div>`;
+                        return t;
+                    }
+                    
+                    const mallasA = getMallasTableHtml('A');
+                    const mallasGamma = getMallasTableHtml('Gamma');
+                    const mallasB = getMallasTableHtml('B');
+                    const mallasPre = getMallasTableHtml('Preescolar');
+                    
+                    
+
+                    function getExamenesTableHtml() {
+                        const examenesList = s.examenesLista || [];
+                        let t = `<h4 class="font-bold text-[#172042] mb-3 mt-6 border-b pb-2 flex items-center justify-between">
+                                    <span>Lista de Exámenes (Saber / Avanzar)</span>
+                                 </h4>
+                                 <div class="overflow-x-auto border border-gray-200 rounded-lg shadow-inner bg-white">
+                                    <table class="w-full text-left text-sm border-collapse relative">
+                                        <thead class="bg-[#172042] text-white">
+                                            <tr>
+                                                <th class="p-3 border-b border-gray-700 bg-[#172042]">Exámenes</th>
+                                                <th class="p-3 border-b border-gray-700 bg-[#172042]">Grados</th>
+                                                <th class="p-3 border-b border-gray-700 bg-[#172042] w-24 text-center">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-200">`;
+                        examenesList.forEach((examen, idx) => {
+                            t += `<tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="p-3 font-bold text-gray-800">${examen.area}</td>
+                                    <td class="p-3 font-bold text-gray-800">${examen.grado}</td>
+                                    <td class="p-2 text-center">
+                                        <button onclick="window.eliminarExamenAdmin(${idx})" class="admin-price-input disabled:opacity-70 disabled:cursor-not-allowed bg-red-100 hover:bg-red-200 text-red-700 p-1 rounded" title="Eliminar" disabled><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg></button>
+                                    </td>
+                                  </tr>`;
+                        });
+                        t += `      <tr class="bg-gray-100">
+                                        <td class="p-2 border-r border-gray-300">
+                                            <input type="text" id="new-examen-area" placeholder="Ej: Matemáticas / Saber 11..." class="admin-price-input disabled:opacity-70 disabled:cursor-not-allowed w-full border border-gray-300 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-green-400 font-mono" disabled />
+                                        </td>
+                                        <td class="p-2 border-r border-gray-300">
+                                            <input type="text" id="new-examen-grado" placeholder="Ej: 11, 9, etc..." class="admin-price-input disabled:opacity-70 disabled:cursor-not-allowed w-full border border-gray-300 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-green-400 font-mono" onkeydown="if(event.key==='Enter') window.agregarExamenAdmin()" disabled />
+                                        </td>
+                                        <td class="p-2 text-center">
+                                            <button onclick="window.agregarExamenAdmin()" class="admin-price-input disabled:opacity-70 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-4 rounded transition-colors text-sm shadow-sm" disabled>Agregar</button>
+                                        </td>
+                                    </tr>
+                                    </tbody></table></div>`;
+                        return t;
+                    }
+                    const tableExamenes = getExamenesTableHtml();
+
                     const tableB = getTableHtml('B', sec_grades, 'Precios Planes: Versión B (Secundaria)');
 
-                    html += `
-                        <div class="bg-white p-6 rounded-lg shadow border border-gray-100 max-w-6xl mt-6 mx-auto">
+                    if (activeTab === 'precios') {
+                        html += `
+                        <div class="bg-white p-6 rounded-lg shadow border border-gray-100 max-w-4xl mt-6 mx-auto">
                             <div class="flex justify-between items-center mb-6">
-                                <h3 class="text-2xl font-bold text-[#172042]">⚙️ Valores Prediseñados Globales</h3>
+                                <h3 class="text-2xl font-bold text-[#172042]">Valores de los materiales disponibles/prediseñado</h3>
                                 <button onclick="window.toggleAdminEdit()" id="btn-admin-edit" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded border shadow-sm transition-colors flex items-center gap-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                     Habilitar Edición
                                 </button>
                             </div>
-                            
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm relative">
-                                    <h4 class="font-bold text-[#172042] mb-4 border-b pb-2">Precios Globales Mallas</h4>
-                                    <div class="space-y-4">
-                                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Mallas Ver A ($)</label><input type="number" id="set-malla-a" value="${mallasPrices.A || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#F2A900]" disabled /></div>
-                                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Mallas Ver B ($)</label><input type="number" id="set-malla-b" value="${mallasPrices.B || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#F2A900]" disabled /></div>
-                                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Mallas Ver Y ($)</label><input type="number" id="set-malla-y" value="${mallasPrices.Y || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#F2A900]" disabled /></div>
-                                    </div>
-                                </div>
-                                <div class="bg-green-50 p-4 rounded-xl border border-green-200 shadow-sm h-fit">
-                                    <h4 class="font-bold text-green-900 mb-4 border-b border-green-200 pb-2">Precio Global Exámenes</h4>
-                                    <div><label class="block text-xs font-bold text-green-800 mb-1">Valor Unitario por Examen ($)</label><input type="number" id="set-examen" value="${globalExamenPrice || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border border-green-300 rounded p-2 outline-none font-mono focus:ring-2 focus:ring-green-500" disabled /></div>
-                                </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
+                                <button onclick="window.cambiarAdminTab('precios-mallas')" class="aspect-square bg-[#1a5b7d] hover:bg-[#13445e] text-white font-bold text-2xl flex items-center justify-center rounded-lg shadow-md transition-transform hover:scale-105">Mallas curriculares</button>
+                                <button onclick="window.cambiarAdminTab('precios-planes')" class="aspect-square bg-[#1a5b7d] hover:bg-[#13445e] text-white font-bold text-2xl flex items-center justify-center rounded-lg shadow-md transition-transform hover:scale-105">Planes de clase</button>
+                                <button onclick="window.cambiarAdminTab('precios-examenes')" class="aspect-square bg-[#1a5b7d] hover:bg-[#13445e] text-white font-bold text-2xl flex items-center justify-center rounded-lg shadow-md transition-transform hover:scale-105">Exámenes</button>
                             </div>
-
-                            ${tableA}
-                            ${tableGamma}
-                            ${tableB}
-                            
-                            <button onclick="window.guardarPreciosAdmin()" id="btn-admin-save" class="w-full bg-gray-300 text-gray-500 cursor-not-allowed font-bold py-4 rounded-xl shadow transition-colors text-lg flex justify-center items-center gap-2 border" disabled>
-                                Guardar Todos los Valores en la Nube
-                            </button>
-                        </div>
-                    `;
+                        </div>`;
+                    } else if (activeTab === 'precios-mallas') {
+                        const pv = window.appData.activePreciosVersion || 'A';
+                        const currentTable = pv === 'A' ? mallasA : (pv === 'B' ? mallasB : (pv === 'Gamma' ? mallasGamma : mallasPre));
+                        const currentGlobal = pv === 'A' ? (mallasPrices.A||'') : (pv === 'B' ? (mallasPrices.B||'') : (pv === 'Gamma' ? (mallasPrices.Y||'') : (mallasPrices.Preescolar||'')));
+                        const inputId = pv === 'A' ? 'set-malla-a' : (pv === 'B' ? 'set-malla-b' : (pv === 'Gamma' ? 'set-malla-y' : 'set-malla-pre'));
+                        
+                        html += `
+                        <div class="max-w-6xl mt-6 mx-auto">
+                            <button onclick="window.cambiarAdminTab('precios')" class="mb-4 text-[#1a5b7d] hover:underline font-bold flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver a Valores Prediseñados</button>
+                            <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
+                                <div class="flex justify-between items-center mb-6">
+                                    <h3 class="text-2xl font-bold text-[#172042]">Precios y Mallas disponibles</h3>
+                                    <button onclick="window.toggleAdminEdit()" id="btn-admin-edit" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded border shadow-sm transition-colors flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                        Habilitar Edición
+                                    </button>
+                                </div>
+                                <div class="flex border-b border-gray-200 mb-6 mt-4">
+                                    <button onclick="window.cambiarPreciosVersion('A')" class="py-2 px-6 font-bold text-lg border-b-2 ${pv === 'A' ? 'border-[#172042] text-[#172042]' : 'border-transparent text-gray-500 hover:text-gray-700'}">Versión A</button>
+                                    <button onclick="window.cambiarPreciosVersion('B')" class="py-2 px-6 font-bold text-lg border-b-2 ${pv === 'B' ? 'border-[#172042] text-[#172042]' : 'border-transparent text-gray-500 hover:text-gray-700'}">Versión B</button>
+                                    <button onclick="window.cambiarPreciosVersion('Gamma')" class="py-2 px-6 font-bold text-lg border-b-2 ${pv === 'Gamma' ? 'border-[#172042] text-[#172042]' : 'border-transparent text-gray-500 hover:text-gray-700'}">Versión Y</button>
+                                    <button onclick="window.cambiarPreciosVersion('Preescolar')" class="py-2 px-6 font-bold text-lg border-b-2 ${pv === 'Preescolar' ? 'border-[#172042] text-[#172042]' : 'border-transparent text-gray-500 hover:text-gray-700'}">Preescolar</button>
+                                </div>
+                                <div class="mb-6 max-w-sm">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Valor Global (${pv === 'Gamma' ? 'Versión Y' : (pv==='Preescolar' ? 'Preescolar' : 'Versión ' + pv)})</label>
+                                    <input type="number" id="${inputId}" value="${currentGlobal}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border border-gray-300 rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#1a5b7d]" disabled />
+                                </div>
+                                ${currentTable}
+                            </div>
+                        </div>`;
+                    } else if (activeTab === 'precios-planes') {
+                        const pv = window.appData.activePreciosVersion || 'A';
+                        const currentTable = pv === 'A' ? tableA : (pv === 'B' ? tableB : (pv === 'Gamma' ? tableGamma : tablePre));
+                        
+                        html += `
+                        <div class="max-w-6xl mt-6 mx-auto">
+                            <button onclick="window.cambiarAdminTab('precios')" class="mb-4 text-[#1a5b7d] hover:underline font-bold flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver a Valores Prediseñados</button>
+                            <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
+                                <div class="flex justify-between items-center mb-6">
+                                    <h3 class="text-2xl font-bold text-[#172042]">Precios y planes disponibles</h3>
+                                    <button onclick="window.toggleAdminEdit()" id="btn-admin-edit" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded border shadow-sm transition-colors flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                        Habilitar Edición
+                                    </button>
+                                </div>
+                                <div class="flex border-b border-gray-200 mb-6 mt-4">
+                                    <button onclick="window.cambiarPreciosVersion('A')" class="py-2 px-6 font-bold text-lg border-b-2 ${pv === 'A' ? 'border-[#172042] text-[#172042]' : 'border-transparent text-gray-500 hover:text-gray-700'}">Versión A</button>
+                                    <button onclick="window.cambiarPreciosVersion('B')" class="py-2 px-6 font-bold text-lg border-b-2 ${pv === 'B' ? 'border-[#172042] text-[#172042]' : 'border-transparent text-gray-500 hover:text-gray-700'}">Versión B</button>
+                                    <button onclick="window.cambiarPreciosVersion('Gamma')" class="py-2 px-6 font-bold text-lg border-b-2 ${pv === 'Gamma' ? 'border-[#172042] text-[#172042]' : 'border-transparent text-gray-500 hover:text-gray-700'}">Versión Y</button>
+                                    <button onclick="window.cambiarPreciosVersion('Preescolar')" class="py-2 px-6 font-bold text-lg border-b-2 ${pv === 'Preescolar' ? 'border-[#172042] text-[#172042]' : 'border-transparent text-gray-500 hover:text-gray-700'}">Preescolar</button>
+                                </div>
+                                ${currentTable}
+                            </div>
+                        </div>`;
+                    } else if (activeTab === 'precios-examenes') {
+                        html += `
+                        <div class="max-w-6xl mt-6 mx-auto">
+                            <button onclick="window.cambiarAdminTab('precios')" class="mb-4 text-[#1a5b7d] hover:underline font-bold flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver a Valores Prediseñados</button>
+                            <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
+                                <div class="flex justify-between items-center mb-6">
+                                    <h3 class="text-2xl font-bold text-[#172042]">Precios y exámenes disponibles</h3>
+                                    <button onclick="window.toggleAdminEdit()" id="btn-admin-edit" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded border shadow-sm transition-colors flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                        Habilitar Edición
+                                    </button>
+                                </div>
+                                <div class="mb-6 max-w-sm">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Valor Unitario por Examen ($)</label>
+                                    <input type="number" id="set-examen" value="${globalExamenPrice || ''}" class="admin-price-input bg-gray-100 disabled:opacity-70 disabled:cursor-not-allowed w-full border border-gray-300 rounded p-2 outline-none font-mono focus:ring-2 focus:ring-[#1a5b7d]" disabled />
+                                </div>
+                                ${tableExamenes}
+                            </div>
+                        </div>`;
+                    }
                 }
-                html += `</div></div>`;
             } else {
                 html += `<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                             <div class="bg-blue-50 p-4 rounded-xl border text-center"><p class="text-xs text-gray-500">Hoy</p><p class="text-2xl font-bold">${stats.hoy}</p></div>
@@ -1987,6 +2268,10 @@
 
         window.cambiarAdminTab = function (tabId) {
             window.appData.activeAdminTab = tabId;
+            renderizarDashboard();
+        }
+        window.cambiarPreciosVersion = function(version) {
+            window.appData.activePreciosVersion = version;
             renderizarDashboard();
         }
 
@@ -3629,10 +3914,10 @@
 
             const SEGMENTOS = [
                 { label: 'Primaria (1 a 5)', nPri: 5, nSec: 0, nGrados: 5 },
-                { label: 'Primaria (Preescolar a 5)', nPri: 6, nSec: 0, nGrados: 6 },
+                { label: 'Primaria (Preescolar a 5)', nPri: 8, nSec: 0, nGrados: 8 },
                 { label: 'Secundaria (6 a 11)', nPri: 0, nSec: 6, nGrados: 6 },
                 { label: '1 a 11', nPri: 5, nSec: 6, nGrados: 11 },
-                { label: 'Preescolar a 11', nPri: 6, nSec: 6, nGrados: 12 }
+                { label: 'Preescolar a 11', nPri: 8, nSec: 6, nGrados: 14 }
             ];
 
             const handleAddNuevaArea = () => {
@@ -3924,7 +4209,7 @@ const DEFAULT_AREAS = [
 ];
 
 const DEFAULT_EXAMENES = ['Lenguaje', 'Sociales', 'Matemáticas', 'Naturales', 'Inglés'];
-const GRADOS = ["Preescolar", "1°", "2°", "3°", "4°", "5°", "6°", "7°", "8°", "9°", "10°", "11°"];
+const GRADOS = ["Pre jardín", "Jardín", "Transición", "1°", "2°", "3°", "4°", "5°", "6°", "7°", "8°", "9°", "10°", "11°"];
 
 function CotizadorPredisenadoApp() {
     const [step, setStep] = useState('form');
@@ -3939,6 +4224,9 @@ function CotizadorPredisenadoApp() {
     // Grados Selector Global
     const [selectedGrades, setSelectedGrades] = useState([]);
     const [descuentoPorcentaje, setDescuentoPorcentaje] = useState(0);
+    const hasPreescolar = selectedGrades.some(g => ['Pre jardín', 'Jardín', 'Transición'].includes(g));
+    const [expandedMalla, setExpandedMalla] = useState(null);
+    const [selectedMallaVersion, setSelectedMallaVersion] = useState({});
 
     const [customAreas, setCustomAreas] = useState(() => {
         const saved = localStorage.getItem('predisenado_custom_areas');
@@ -3949,6 +4237,7 @@ function CotizadorPredisenadoApp() {
 
     // Global settings for periods & prices
     const [mallasPeriods, setMallasPeriods] = useState(4);
+    const [tipoInstitucionPre, setTipoInstitucionPre] = useState('Pública');
     const [mallasPrices, setMallasPrices] = useState({ A: 0, B: 0, Y: 0 });
     const [planesPeriods, setPlanesPeriods] = useState(4);
 
@@ -3967,18 +4256,20 @@ function CotizadorPredisenadoApp() {
         const user = window.appData?.currentUser;
         const role = window.appData?.role || localStorage.getItem('userRole');
         
-        // Broad admin check in case localstorage still has old 'Admin'
+        let localIsAdmin = false;
         if (user === 'Yeison Barón' || user === 'Admin' || role === 'admin') {
-            setIsAdmin(true);
+            localIsAdmin = true;
         }
+        const originalAdmin = sessionStorage.getItem('adminOriginalName');
+        if (originalAdmin && originalAdmin !== user) {
+            localIsAdmin = false; // Impersonating a seller, hide admin tools in cotizador
+        }
+        setIsAdmin(localIsAdmin);
         
         fetch(window.API_URL ? `${window.API_URL}/settings` : '/api/settings')
             .then(res => res.json())
             .then(data => {
-                setSettings({
-                    planesPrices: data.planesPrices || {},
-                    globalExamenPrice: data.globalExamenPrice || 0
-                });
+                setSettings(data);
             }).catch(e => console.error("Error loading settings:", e));
     }, []);
 
@@ -4024,8 +4315,27 @@ function CotizadorPredisenadoApp() {
     const [editingPlane, setEditingPlane] = useState(null); 
     const [tempPlanePrice, setTempPlanePrice] = useState(0);
 
-    const getPlanePrice = (area, version, periods) => {
-        return settings.planesPrices?.[area]?.[version]?.[periods] || 0;
+    const getPlanePrice = (area, version, periods, gradesList) => {
+        let total4 = 0;
+        // Sum values from HTML table (which saves by grade)
+        if (gradesList && gradesList.length > 0) {
+            gradesList.forEach(g => {
+                const gradePrice = settings.planesPrices?.[area]?.[version]?.[g];
+                if (gradePrice && gradePrice !== -1) {
+                    total4 += gradePrice;
+                }
+            });
+        }
+        
+        // Fallback to old React-saved global value if HTML table is empty
+        if (total4 === 0) {
+            total4 = settings.planesPrices?.[area]?.[version]?.[4] || 0;
+        }
+        
+        if (periods === 3) {
+            return Math.round((total4 * 4) / 3);
+        }
+        return total4;
     };
 
     const savePlanePrice = (area, version, periods) => {
@@ -4043,59 +4353,75 @@ function CotizadorPredisenadoApp() {
         saveSettings({...settings, globalExamenPrice: Number(price) || 0});
     };
 
-    const addToCartMallas = (area) => {
-        if (selectedGrades.length === 0) return alert("Selecciona al menos un grado arriba.");
-        const version = mallasConfig[area]?.version || 'A';
-        const finalValue = mallasPrices[version] || 0;
+    const addToCartMallas = (area, versionParam) => {
+        if (selectedGrades.length === 0) return window.mostrarToast ? window.mostrarToast("Selecciona al menos un grado arriba.", "error") : alert("Selecciona al menos un grado arriba.");
+        const version = versionParam || 'A';
+        const priceVersion = version === 'Gamma' ? 'Y' : version;
+        const hasPreescolar = selectedGrades.some(g => ['Pre jardín', 'Jardín', 'Transición'].includes(g));
         
+        const mPrices = settings.mallasPrices || {A:0, B:0, Y:0, Preescolar:0};
+        const finalValue = mPrices[priceVersion] || 0;
+
+        
+        const finalArea = hasPreescolar ? `${area} (${tipoInstitucionPre})` : area;
         setCart([...cart, {
             id: Date.now() + Math.random(),
             category: 'mallas',
-            area,
+            area: finalArea,
             grades: [...selectedGrades],
             version,
             periods: mallasPeriods,
             price: finalValue, 
             total: finalValue // Mallas value is final, no period multiplication needed
         }]);
-        window.mostrarToast && window.mostrarToast(`Añadido: ${area} (Mallas)`);
+        window.mostrarToast && window.mostrarToast(`Añadido: ${finalArea} (Mallas)`);
     };
 
-    const addToCartPlanes = (area) => {
-        if (selectedGrades.length === 0) return alert("Selecciona al menos un grado arriba.");
-        const version = planesConfig[area]?.version || 'A';
+    const addToCartPlanes = (area, versionParam) => {
+        if (selectedGrades.length === 0) return window.mostrarToast ? window.mostrarToast("Selecciona al menos un grado arriba.", "error") : alert("Selecciona al menos un grado arriba.");
+        const hasPreescolar = selectedGrades.some(g => ['Pre jardín', 'Jardín', 'Transición'].includes(g));
+        const version = versionParam || (hasPreescolar ? 'Preescolar' : (planesConfig[area]?.version || 'A'));
         const validGrades = selectedGrades.filter(g => settings.planesPrices?.[area]?.[version]?.[g] !== -1);
         if (validGrades.length === 0) {
-            return window.mostrarToast ? window.mostrarToast(`El área ${area} no está disponible para los grados seleccionados.`, "error") : alert(`El área ${area} no está disponible para los grados seleccionados.`);
+            return window.mostrarToast ? window.mostrarToast(`El área ${area} no está disponible para los grados seleccionados en versión ${version}.`, "error") : alert(`El área ${area} no está disponible para los grados seleccionados.`);
         }
         
-        const totalVal = getPlanePrice(area, version, planesPeriods);
+        const totalVal = getPlanePrice(area, version, planesPeriods, validGrades);
+        const finalArea = hasPreescolar ? `${area} (${tipoInstitucionPre})` : area;
         setCart([...cart, {
             id: Date.now() + Math.random(),
             category: 'planes',
-            area,
+            area: finalArea,
             grades: [...validGrades],
             version,
             periods: planesPeriods,
             price: totalVal, 
             total: totalVal
         }]);
-        window.mostrarToast && window.mostrarToast(`Añadido: ${area} (Planes) para ${validGrades.join(', ')}`);
+        window.mostrarToast && window.mostrarToast(`Añadido: ${finalArea} (Planes) para ${validGrades.join(', ')}`);
     };
 
-    const addToCartExamenes = (area) => {
-        if (selectedGrades.length === 0) return alert("Selecciona al menos un grado arriba.");
+    const addToCartExamenes = (examenObj) => {
+        if (selectedGrades.length === 0) return window.mostrarToast ? window.mostrarToast("Selecciona al menos un grado arriba.", "error") : alert("Selecciona al menos un grado arriba.");
         const val = settings.globalExamenPrice || 0;
+        
+        const exGrades = typeof examenObj.grado === 'string' ? examenObj.grado.split(',').map(s=>s.trim()) : [];
+        const validGrades = selectedGrades.filter(g => exGrades.includes(g) || exGrades.includes('Todos'));
+        
+        if (validGrades.length === 0) {
+             return window.mostrarToast ? window.mostrarToast(`Este examen no está disponible para los grados seleccionados.`, "error") : alert(`Examen no disponible.`);
+        }
+        
+        const totalVal = validGrades.length * val;
         setCart([...cart, {
             id: Date.now() + Math.random(),
             category: 'examenes',
-            area,
-            grades: [...selectedGrades],
-            examenesCount: selectedGrades.length,
-            price: val,
-            total: val * selectedGrades.length
+            area: typeof examenObj === 'string' ? examenObj : examenObj.area,
+            grades: [...validGrades],
+            price: val, 
+            total: totalVal
         }]);
-        window.mostrarToast && window.mostrarToast(`Añadido: ${area} (Exámenes)`);
+        window.mostrarToast && window.mostrarToast(`Añadido: ${typeof examenObj === 'string' ? examenObj : examenObj.area} (Exámenes) para ${validGrades.join(', ')}`);
     };
 
     const removeFromCart = (id) => {
@@ -4161,9 +4487,11 @@ function CotizadorPredisenadoApp() {
                 </button>
             </div>
 
-            {/* Info Docente y Grados Globales */}
-            <div className="bg-white p-6 rounded-xl shadow-md border border-[#F2A900]">
-                <h3 className="text-lg font-bold text-[#172042] mb-4 border-b pb-2">Configuración General</h3>
+            <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+                <div className="flex-1 w-full lg:w-2/3 space-y-6">
+                    {/* Info Docente y Grados Globales */}
+                    <div className="bg-white p-6 rounded-xl shadow-md border border-[#F2A900]">
+                        <h3 className="text-lg font-bold text-[#172042] mb-4 border-b pb-2">Configuración General</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Nombre Docente *</label><input type="text" value={docenteNombre} onChange={e => setDocenteNombre(e.target.value)} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none" /></div>
                     <div><label className="block text-xs font-bold text-gray-700 mb-1">Número</label><input type="text" value={docenteNumero} onChange={e => setDocenteNumero(e.target.value)} className="w-full border rounded p-2 focus:ring-[#F2A900] outline-none" /></div>
@@ -4181,7 +4509,22 @@ function CotizadorPredisenadoApp() {
                                 </button>
                             ))}
                         </div>
-                        <p className="text-xs text-gray-400 mt-2">Los grados que selecciones aquí se usarán cuando des clic en "Añadir a Cotización" abajo.</p>
+                        <p className="text-xs text-gray-400 mt-2 mb-2">Los grados que selecciones aquí se usarán cuando des clic en "Añadir a Cotización" abajo.</p>
+                        {selectedGrades.some(g => ['Pre jardín', 'Jardín', 'Transición'].includes(g)) && (
+                            <div className="p-3 bg-[#e8eaf6] rounded border border-[#c5cae9]">
+                                <label className="block text-xs font-bold text-[#172042] mb-2">Tipo de Institución (Aplica para Preescolar)</label>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center gap-1 cursor-pointer">
+                                        <input type="radio" name="tipoInst" checked={tipoInstitucionPre === 'Pública'} onChange={() => setTipoInstitucionPre('Pública')} />
+                                        <span className="text-sm">Pública</span>
+                                    </label>
+                                    <label className="flex items-center gap-1 cursor-pointer">
+                                        <input type="radio" name="tipoInst" checked={tipoInstitucionPre === 'Privada'} onChange={() => setTipoInstitucionPre('Privada')} />
+                                        <span className="text-sm">Privada</span>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="w-full md:w-48">
                         <label className="block text-xs font-bold text-gray-700 mb-2">Descuento Final (%)</label>
@@ -4189,6 +4532,54 @@ function CotizadorPredisenadoApp() {
                     </div>
                 </div>
             </div>
+            </div> {/* Cierre de la columna izquierda */}
+
+            {/* CARRITO Y RESUMEN - Columna Derecha */}
+            <div className="w-full lg:w-1/3 sticky top-6">
+                <div className="bg-[#172042] text-white p-6 rounded-xl shadow-lg h-full">
+                    <h3 className="text-xl font-bold mb-4">Carrito de Cotización ({cart.length} ítems añadidos)</h3>
+                    {cart.length === 0 ? (
+                        <p className="text-gray-400 text-sm">Aún no has añadido ninguna área. Selecciona los grados arriba y haz clic en "+ Añadir a Cotización" en las áreas que desees.</p>
+                    ) : (
+                        <div className="space-y-2 mb-6 max-h-64 overflow-y-auto pr-2">
+                            {cart.map(item => (
+                                <div key={item.id} className="flex flex-wrap justify-between items-center border border-gray-600 p-3 rounded bg-gray-800 gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="font-bold uppercase text-xs px-2 py-1 rounded bg-gray-700">{item.category}</span>
+                                        <span className="font-bold text-yellow-400">{item.area}</span>
+                                        <span className="text-xs text-gray-300">Grados: {item.grades.join(', ')}</span>
+                                        {item.category !== 'examenes' && <span className="text-xs text-gray-300">Ver {item.version} | {item.periods} Per.</span>}
+                                    </div>
+                                    <div className="flex items-center gap-4 ml-auto">
+                                        <span className="font-bold text-green-400 whitespace-nowrap">$ {item.total.toLocaleString()}</span>
+                                        <button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-300 font-bold bg-red-900/50 px-2 py-1 rounded">X</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    
+                    <div className="flex flex-col xl:flex-row justify-between items-center border-t border-gray-600 pt-4 gap-4">
+                        <div className="text-xl font-bold text-yellow-400 text-center xl:text-left">
+                            Total General: <br className="hidden xl:block" />$ {finalTotal.toLocaleString()} COP
+                        </div>
+                        <button onClick={() => {
+                            if (!docenteNombre) {
+                                alert("Por favor ingresa el Nombre del Docente en la Configuración General antes de generar el PDF.");
+                                return;
+                            }
+                            if (cart.length === 0) {
+                                alert("Añade al menos un área al carrito antes de generar el PDF.");
+                                return;
+                            }
+                            setStep('quote');
+                        }} className="bg-[#F2A900] hover:bg-yellow-500 text-[#172042] font-black py-3 px-6 rounded-lg shadow-lg transition-colors w-full xl:w-auto text-sm md:text-base">
+                            GENERAR PDF FINAL →
+                        </button>
+                    </div>
+                </div>
+            </div>
+            </div> {/* Cierre del contenedor flex superior */}
 
             {/* TABS */}
             <h3 className="text-lg font-bold text-[#172042] mt-6">Paso 2: Explora las áreas y añádelas al carrito</h3>
@@ -4203,44 +4594,85 @@ function CotizadorPredisenadoApp() {
                 {activeTab === 'mallas' && (
                     <div>
                         <div className="flex justify-between items-center mb-4 border-b pb-2 border-gray-200">
-                            <h3 className="text-xl font-bold text-[#172042]">Mallas</h3>
-                            <div className="flex items-center gap-4">
-                                <label className="text-sm font-bold text-gray-700">Periodos:</label>
-                                <select value={mallasPeriods} onChange={e => setMallasPeriods(Number(e.target.value))} className="border rounded p-1 font-bold">
-                                    <option value={3}>3 Periodos</option><option value={4}>4 Periodos</option>
-                                </select>
-                            </div>
+                            <h3 className="text-xl font-bold text-blue-900">Mallas</h3>
                         </div>
+                        <div className="mb-6">
+                            {(() => {
+                                const mallasAreas = {};
+                                const versiones = hasPreescolar ? ['Preescolar'] : ['A', 'B', 'Gamma'];
+                                versiones.forEach(v => {
+                                    const mallasList = settings.mallasPorSeccion?.[v] || [];
+                                    mallasList.forEach(m => {
+                                        const areaStr = typeof m === 'string' ? m : m.area;
+                                        const gradoStr = typeof m === 'string' ? 'Todos' : (m.grado || '');
+                                        
+                                        let isAvailable = false;
+                                        if (selectedGrades.length === 0) {
+                                            isAvailable = true;
+                                        } else {
+                                            if (typeof m === 'string' || gradoStr === 'Todos' || gradoStr === '') isAvailable = true;
+                                            else {
+                                                isAvailable = selectedGrades.some(sg => gradoStr.split(',').map(s=>s.trim().replace('°','')).includes(sg.replace('°','')));
+                                            }
+                                        }
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-gray-50 p-4 rounded-lg">
-                            <div><label className="block text-xs font-bold text-gray-700 mb-1">Valor Global A ($)</label><input type="number" value={mallasPrices.A || ''} onChange={e => setMallasPrices({...mallasPrices, A: Number(e.target.value)})} className="w-full border rounded p-2 outline-none font-mono" /></div>
-                            <div><label className="block text-xs font-bold text-gray-700 mb-1">Valor Global B ($)</label><input type="number" value={mallasPrices.B || ''} onChange={e => setMallasPrices({...mallasPrices, B: Number(e.target.value)})} className="w-full border rounded p-2 outline-none font-mono" /></div>
-                            <div><label className="block text-xs font-bold text-gray-700 mb-1">Valor Global Y ($)</label><input type="number" value={mallasPrices.Y || ''} onChange={e => setMallasPrices({...mallasPrices, Y: Number(e.target.value)})} className="w-full border rounded p-2 outline-none font-mono" /></div>
-                        </div>
+                                        if (isAvailable) {
+                                            if (!mallasAreas[areaStr]) mallasAreas[areaStr] = [];
+                                            if (!mallasAreas[areaStr].includes(v)) mallasAreas[areaStr].push(v);
+                                        }
+                                    });
+                                });
 
-                        <div className="grid grid-cols-3 gap-3 mb-6">
-                            {allAreas.map(area => {
-                                const exp = mallasConfig[area]?.expanded || false;
-                                const version = mallasConfig[area]?.version || 'A';
+                                const areasUnicas = Object.keys(mallasAreas);
+                                if (areasUnicas.length === 0) {
+                                    return <p className="text-gray-500 text-sm">No hay mallas definidas o disponibles para los grados seleccionados.</p>;
+                                }
+
                                 return (
-                                    <div key={`m_${area}`} className={`border rounded p-3 transition-colors ${exp ? 'border-[#F2A900] bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                        <div className="flex items-center gap-2 mb-2 cursor-pointer" onClick={() => toggleMallasConfig(area)}>
-                                            <span className="text-gray-400">{exp ? '▼' : '▶'}</span>
-                                            <span className={`text-sm font-bold ${exp ? 'text-[#172042]' : 'text-gray-600'}`}>{area}</span>
-                                        </div>
-                                        {exp && (
-                                            <div className="pl-6 flex flex-col gap-3">
-                                                <div className="flex gap-2">
-                                                    {['A', 'B', 'Y'].map(v => (
-                                                        <button key={v} onClick={() => setMallasVersion(area, v)} className={`px-2 py-0.5 text-xs font-bold rounded ${version === v ? 'bg-[#172042] text-white' : 'bg-white border text-gray-500 hover:bg-gray-100'}`}>Ver {v}</button>
-                                                    ))}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {areasUnicas.map(area => {
+                                            const isExpanded = expandedMalla === area;
+                                            const availableVersions = mallasAreas[area];
+                                            const currentSelectedVersion = selectedMallaVersion[area] || availableVersions[0];
+
+                                            return (
+                                                <div key={area} className={`border rounded p-3 transition-colors ${isExpanded ? 'border-[#F2A900] shadow-md bg-orange-50/10' : 'border-gray-200 hover:border-gray-300'}`}>
+                                                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => setExpandedMalla(isExpanded ? null : area)}>
+                                                        <span className="text-[#172042] font-bold text-xs" style={{transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block'}}>
+                                                            ▶
+                                                        </span>
+                                                        <span className={`font-bold text-sm ${isExpanded ? 'text-[#172042]' : 'text-gray-700'}`}>{area}</span>
+                                                    </div>
+                                                    
+                                                    {isExpanded && (
+                                                        <div className="mt-3 pt-3 border-t border-gray-100">
+                                                            {!hasPreescolar && (
+                                                                <div className="flex gap-2 mb-3">
+                                                                    {availableVersions.map(v => (
+                                                                        <button 
+                                                                            key={v} 
+                                                                            onClick={() => setSelectedMallaVersion({...selectedMallaVersion, [area]: v})}
+                                                                            className={`px-2 py-1 text-xs font-bold rounded border ${currentSelectedVersion === v ? 'bg-[#172042] text-white border-[#172042]' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
+                                                                        >
+                                                                            Ver {v === 'Gamma' ? 'Y' : v}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                            <button 
+                                                                onClick={() => addToCartMallas(area, hasPreescolar ? 'Preescolar' : currentSelectedVersion)} 
+                                                                className="bg-black hover:bg-gray-800 text-white text-xs py-2 px-4 rounded font-bold transition-colors w-full"
+                                                            >
+                                                                + Añadir a Cotización
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <button onClick={() => addToCartMallas(area)} className="bg-black hover:bg-gray-800 text-white text-xs py-2 rounded font-bold transition-colors w-full">+ Añadir a Cotización</button>
-                                            </div>
-                                        )}
+                                            );
+                                        })}
                                     </div>
-                                )
-                            })}
+                                );
+                            })()}
                         </div>
                     </div>
                 )}
@@ -4257,42 +4689,21 @@ function CotizadorPredisenadoApp() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3 mb-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
                             {allAreas.map(area => {
-                                const exp = planesConfig[area]?.expanded || false;
-                                const version = planesConfig[area]?.version || 'A';
-                                const currentPrice = getPlanePrice(area, version, planesPeriods);
-                                const isEditingThis = editingPlane?.area === area && editingPlane?.version === version && editingPlane?.periods === planesPeriods;
-
+                                const availForArea = ['A', 'B', 'Gamma'].some(v => selectedGrades.some(g => settings.planesPrices?.[area]?.[v]?.[g] !== -1));
+                                const hasPre = selectedGrades.some(g => settings.planesPrices?.[area]?.Preescolar?.[g] !== -1);
+                                if (!hasPreescolar && !availForArea) return null;
+                                if (hasPreescolar && !hasPre) return null;
                                 return (
-                                    <div key={`p_${area}`} className={`border rounded p-3 transition-colors ${exp ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                        <div className="flex items-center gap-2 mb-2 cursor-pointer" onClick={() => togglePlanesConfig(area)}>
-                                            <span className="text-blue-400">{exp ? '▼' : '▶'}</span>
-                                            <span className={`text-sm font-bold ${exp ? 'text-blue-900' : 'text-gray-600'}`}>{area}</span>
-                                        </div>
-                                        {exp && (
-                                            <div className="pl-6 flex flex-col gap-3">
-                                                <div className="flex gap-2">
-                                                    {['A', 'B', 'Y'].map(v => (
-                                                        <button key={v} onClick={() => setPlanesVersion(area, v)} className={`px-2 py-0.5 text-xs font-bold rounded ${version === v ? 'bg-blue-900 text-white' : 'bg-white border text-gray-500 hover:bg-gray-100'}`}>Ver {v}</button>
-                                                    ))}
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    {isEditingThis ? (
-                                                        <div className="flex items-center gap-1">
-                                                            <input type="number" value={tempPlanePrice} onChange={e => setTempPlanePrice(e.target.value)} className="w-20 border rounded p-1 text-xs" />
-                                                            <button onClick={() => savePlanePrice(area, version, planesPeriods)} className="bg-green-600 text-white px-2 rounded text-xs py-1">Guardar</button>
-                                                        </div>
-                                                    ) : (
-                                                        <>
-                                                            <span className="text-xs font-bold text-blue-900 bg-blue-100 px-2 py-1 rounded">$ {currentPrice.toLocaleString()}</span>
-                                                            {isAdmin && <button onClick={() => { setTempPlanePrice(currentPrice); setEditingPlane({ area, version, periods: planesPeriods }); }} className="text-gray-500 hover:text-black cursor-pointer bg-gray-200 rounded p-1" title="Editar valor global">✏️</button>}
-                                                        </>
-                                                    )}
-                                                </div>
-                                                <button onClick={() => addToCartPlanes(area)} className="bg-blue-900 hover:bg-blue-800 text-white text-xs py-2 rounded font-bold transition-colors w-full">+ Añadir a Cotización</button>
+                                    <div key={`p_${area}`} className="border rounded p-3 border-gray-200 hover:border-gray-300 relative group">
+                                        <div className="flex flex-col gap-2 h-full justify-between">
+                                            <div>
+                                                <span className="text-sm font-bold text-gray-700">{area}</span>
+                                                <p className="text-xs text-gray-500 mt-1">Sujeto a disponibilidad por grado y versión</p>
                                             </div>
-                                        )}
+                                            <button onClick={() => addToCartPlanes(area, null)} className="bg-blue-900 hover:bg-blue-800 text-white text-xs py-2 rounded font-bold transition-colors w-full mt-2">+ Añadir a Cotización</button>
+                                        </div>
                                     </div>
                                 )
                             })}
@@ -4326,50 +4737,6 @@ function CotizadorPredisenadoApp() {
                         </div>
                     </div>
                 )}
-
-                {(activeTab === 'mallas' || activeTab === 'planes') && (
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col md:flex-row items-end gap-4 mt-6">
-                        <div className="flex-1 w-full">
-                            <label className="block text-xs font-bold text-gray-700 mb-1">Añadir nueva área a la lista de {activeTab}</label>
-                            <input type="text" value={newAreaName} onChange={e => setNewAreaName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCustomArea()} placeholder="Nombre de la nueva área..." className="w-full border rounded p-2 outline-none" />
-                        </div>
-                        <button onClick={addCustomArea} className="w-full md:w-auto bg-gray-800 hover:bg-black text-white px-6 py-2 rounded font-bold">Crear Área</button>
-                    </div>
-                )}
-            </div>
-
-            {/* CARRITO Y RESUMEN */}
-            <div className="bg-[#172042] text-white p-6 rounded-xl shadow-lg mt-6">
-                <h3 className="text-xl font-bold mb-4">Carrito de Cotización ({cart.length} ítems añadidos)</h3>
-                {cart.length === 0 ? (
-                    <p className="text-gray-400 text-sm">Aún no has añadido ninguna área. Selecciona los grados arriba y haz clic en "+ Añadir a Cotización" en las áreas que desees.</p>
-                ) : (
-                    <div className="space-y-2 mb-6 max-h-64 overflow-y-auto pr-2">
-                        {cart.map(item => (
-                            <div key={item.id} className="flex justify-between items-center border border-gray-600 p-3 rounded bg-gray-800">
-                                <div>
-                                    <span className="font-bold uppercase text-xs px-2 py-1 rounded mr-2 bg-gray-700">{item.category}</span>
-                                    <span className="font-bold text-yellow-400">{item.area}</span>
-                                    <span className="text-xs text-gray-300 ml-2">Grados: {item.grades.join(', ')}</span>
-                                    {item.category !== 'examenes' && <span className="text-xs text-gray-300 ml-2">Ver {item.version} | {item.periods} Per.</span>}
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <span className="font-bold text-green-400">$ {item.total.toLocaleString()}</span>
-                                    <button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-300 font-bold bg-red-900/50 px-2 py-1 rounded">X</button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-                
-                <div className="flex justify-between items-center border-t border-gray-600 pt-4">
-                    <div className="text-xl font-bold text-yellow-400">
-                        Total General: $ {finalTotal.toLocaleString()} COP
-                    </div>
-                    <button onClick={() => setStep('quote')} disabled={!docenteNombre || cart.length === 0} className="bg-[#F2A900] hover:bg-yellow-500 text-[#172042] font-black py-3 px-8 rounded-lg shadow-lg disabled:opacity-50 transition-colors">
-                        GENERAR PDF FINAL →
-                    </button>
-                </div>
             </div>
         </div>
     );
@@ -4400,7 +4767,6 @@ function CotizadorPredisenadoApp() {
                                     <p><strong>DIRIGIDO A:</strong> {docenteNombre}</p>
                                     {docenteNumero && <p><strong>Celular:</strong> {docenteNumero}</p>}
                                     {docenteCorreo && <p><strong>Correo:</strong> {docenteCorreo}</p>}
-                                    {lead && <p><strong>Lead:</strong> {lead}</p>}
                                 </div>
                                 <div className="text-right">
                                     <p><strong>COTIZADO POR:</strong> Hamilton Colombia® SAS</p>
@@ -4496,7 +4862,7 @@ function CotizadorPredisenadoApp() {
     );
 
     return (
-        <div className="font-sans max-w-5xl mx-auto">
+        <div className="font-sans w-full max-w-[1600px] px-4 mx-auto">
             {step === 'form' ? renderForm() : renderQuote()}
         </div>
     );
